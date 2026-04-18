@@ -337,7 +337,7 @@ function initAudio() {
   if (SFX._initialized) return;
   SFX._initialized = true;
 
-  SFX.bg = new Audio('sfx/background.mp3');
+  SFX.bg = new Audio('sfx/background1.mp3');
   SFX.bg.loop = true;
   SFX.bg.volume = 0.35;
 
@@ -368,23 +368,33 @@ function playCollect() {
 
 function playFinal() {
   if (!SFX.final) return;
-  // Rapid fade out BG (0.5s)
+
+  // Step 1: Stop BG immediately
   if (SFX.bg) {
+    // Quick fade out (0.3s) then pause, THEN start final
     const fadeOut = setInterval(() => {
       if (SFX.bg.volume > 0.02) {
-        SFX.bg.volume = Math.max(0, SFX.bg.volume - 0.07);
+        SFX.bg.volume = Math.max(0, SFX.bg.volume - 0.1);
       } else {
+        SFX.bg.volume = 0;
         SFX.bg.pause();
         clearInterval(fadeOut);
+        // Step 2: Start final only AFTER bg is fully stopped
+        startFinalMusic();
       }
     }, 30);
+  } else {
+    startFinalMusic();
   }
-  // Fade in final
+}
+
+function startFinalMusic() {
   SFX.final.volume = 0;
   SFX.final.play().catch(() => {});
+  // Fade in over ~0.6s
   const fadeIn = setInterval(() => {
     if (SFX.final.volume < 0.78) {
-      SFX.final.volume = Math.min(0.8, SFX.final.volume + 0.06);
+      SFX.final.volume = Math.min(0.8, SFX.final.volume + 0.05);
     } else {
       clearInterval(fadeIn);
     }

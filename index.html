@@ -7,77 +7,60 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-
+  #camera-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
   #three-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; touch-action: none; }
 
-  /* Fallback camera video (non-XR) */
-  #camera-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; display: none; }
-
-  /* DOM Overlay — visible during XR session */
-  #dom-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 10; pointer-events: none;
-    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-  }
-  #dom-overlay > * { pointer-events: auto; }
-
+  /* UI Overlay */
+  #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+  #ui-overlay > * { pointer-events: auto; }
   .top-bar { width: 100%; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
   .score-display { background: rgba(255,255,255,0.9); border-radius: 20px; padding: 8px 18px; font-weight: 700; font-size: 16px; color: #1a1a2e; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
   .progress-bar-container { flex: 1; margin: 0 16px; height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px; overflow: hidden; }
   .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00cc00, #0066ff, #8800ff); border-radius: 4px; transition: width 0.5s ease; width: 0%; }
-
   .swipe-hint { color: #fff; font-size: 18px; font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,0.5); animation: pulse 2s ease-in-out infinite; text-align: center; padding: 0 20px; }
-  @keyframes pulse { 0%,100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+  @keyframes pulse { 0%,100% { opacity:0.7; transform:scale(1); } 50% { opacity:1; transform:scale(1.05); } }
 
-  /* Splash screen */
-  #splash-screen {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;
+  /* Splash */
+  #splash-screen { position: fixed; top:0; left:0; width:100%; height:100%; z-index:100;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    transition: opacity 0.8s ease, transform 0.8s ease;
-  }
-  #splash-screen.hidden { opacity: 0; transform: scale(1.1); pointer-events: none; }
-  .splash-title { font-size: 28px; color: #fff; font-weight: 800; text-align: center; line-height: 1.3; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 2px; }
-  .splash-subtitle { font-size: 16px; color: rgba(255,255,255,0.7); text-align: center; margin-bottom: 40px; max-width: 300px; line-height: 1.5; }
-  .splash-rainbow { width: 120px; height: 60px; border-radius: 60px 60px 0 0; margin-bottom: 30px;
+    transition: opacity 0.8s ease, transform 0.8s ease; }
+  #splash-screen.hidden { opacity:0; transform:scale(1.1); pointer-events:none; }
+  .splash-title { font-size:28px; color:#fff; font-weight:800; text-align:center; line-height:1.3; margin-bottom:12px; text-transform:uppercase; letter-spacing:2px; }
+  .splash-subtitle { font-size:16px; color:rgba(255,255,255,0.7); text-align:center; margin-bottom:40px; max-width:300px; line-height:1.5; }
+  .splash-rainbow { width:120px; height:60px; border-radius:60px 60px 0 0; margin-bottom:30px;
     background: linear-gradient(180deg, #ff0000 0%, #ff0000 14%, #ff8800 14%, #ff8800 28%, #ffff00 28%, #ffff00 42%, #00cc00 42%, #00cc00 57%, #0066ff 57%, #0066ff 71%, #8800ff 71%, #8800ff 85%, transparent 85%);
-    animation: rainbowPulse 3s ease-in-out infinite; }
-  @keyframes rainbowPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
-  .start-btn { background: linear-gradient(135deg, #e63946, #f72585); color: #fff; border: none; padding: 16px 48px; font-size: 20px; font-weight: 700; border-radius: 50px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 20px rgba(247,37,133,0.4); }
-  .start-btn:active { transform: scale(0.95); }
-  .camera-note { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 16px; text-align: center; }
-  #xr-status { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 8px; }
+    animation: rp 3s ease-in-out infinite; }
+  @keyframes rp { 0%,100% { transform:scale(1); } 50% { transform:scale(1.1); } }
+  .start-btn { background: linear-gradient(135deg, #e63946, #f72585); color:#fff; border:none; padding:16px 48px; font-size:20px; font-weight:700; border-radius:50px; cursor:pointer; text-transform:uppercase; letter-spacing:1px; box-shadow:0 4px 20px rgba(247,37,133,0.4); }
+  .start-btn:active { transform:scale(0.95); }
+  .camera-note { color:rgba(255,255,255,0.5); font-size:12px; margin-top:16px; text-align:center; }
 
-  /* Win screen */
-  #win-screen {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 50;
-    display: none; flex-direction: column; align-items: center; justify-content: center;
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-  }
-  #win-screen.visible { display: flex; animation: fadeIn 0.5s ease; }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  .win-logo-container { animation: logoReveal 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform: scale(0); }
-  @keyframes logoReveal { 0% { transform: scale(0) rotate(-10deg); opacity: 0; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
-  .win-logo { width: 280px; padding: 24px; background: #fff; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,0.3); text-align: center; }
-  .win-logo .brand-super { font-size: 18px; color: #e63946; font-weight: 700; }
-  .win-logo .brand-win { font-size: 42px; font-weight: 900; line-height: 1;
-    background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00cc00, #0066ff, #8800ff);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-  .win-logo .brand-for { font-size: 20px; color: #666; font-weight: 400; margin: 0 4px; }
-  .win-logo .brand-life { font-size: 42px; font-weight: 900; color: #00a651; }
-  .win-logo .brand-line { display: flex; align-items: baseline; justify-content: center; gap: 2px; }
-  .win-message { color: #fff; font-size: 18px; font-weight: 600; margin-top: 24px; text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,0.5); animation: fadeIn 1s ease 0.5s both; }
-  .win-sub { color: rgba(255,255,255,0.8); font-size: 14px; margin-top: 8px; text-align: center; animation: fadeIn 1s ease 0.8s both; }
-  .cta-btn { margin-top: 32px; background: linear-gradient(135deg, #00a651, #00c853); color: #fff; border: none; padding: 16px 40px; font-size: 18px; font-weight: 700; border-radius: 50px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 20px rgba(0,166,81,0.4); animation: fadeIn 1s ease 1s both; }
-  .cta-btn:active { transform: scale(0.95); }
-  .confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 45; pointer-events: none; }
+  /* Win */
+  #win-screen { position:fixed; top:0; left:0; width:100%; height:100%; z-index:50;
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.6); backdrop-filter:blur(8px); }
+  #win-screen.visible { display:flex; animation:fadeIn 0.5s ease; }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .win-logo-container { animation: logoReveal 1.2s cubic-bezier(0.34,1.56,0.64,1) forwards; transform:scale(0); }
+  @keyframes logoReveal { 0%{transform:scale(0) rotate(-10deg);opacity:0} 100%{transform:scale(1) rotate(0deg);opacity:1} }
+  .win-logo { width:280px; padding:24px; background:#fff; border-radius:20px; box-shadow:0 8px 40px rgba(0,0,0,0.3); text-align:center; }
+  .win-logo .brand-super { font-size:18px; color:#e63946; font-weight:700; }
+  .win-logo .brand-win { font-size:42px; font-weight:900; line-height:1;
+    background:linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00cc00,#0066ff,#8800ff);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .win-logo .brand-for { font-size:20px; color:#666; font-weight:400; margin:0 4px; }
+  .win-logo .brand-life { font-size:42px; font-weight:900; color:#00a651; }
+  .win-logo .brand-line { display:flex; align-items:baseline; justify-content:center; gap:2px; }
+  .win-message { color:#fff; font-size:18px; font-weight:600; margin-top:24px; text-align:center; text-shadow:0 2px 8px rgba(0,0,0,0.5); animation:fadeIn 1s ease 0.5s both; }
+  .win-sub { color:rgba(255,255,255,0.8); font-size:14px; margin-top:8px; text-align:center; animation:fadeIn 1s ease 0.8s both; }
+  .cta-btn { margin-top:32px; background:linear-gradient(135deg,#00a651,#00c853); color:#fff; border:none; padding:16px 40px; font-size:18px; font-weight:700; border-radius:50px; cursor:pointer; text-transform:uppercase; letter-spacing:1px; box-shadow:0 4px 20px rgba(0,166,81,0.4); animation:fadeIn 1s ease 1s both; }
+  .cta-btn:active { transform:scale(0.95); }
+  .confetti-canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:45; pointer-events:none; }
 
   /* Swipe trail */
-  #swipe-trail { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
-  #swipe-trail line { stroke: rgba(255,255,255,0.6); stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(255,200,50,0.8)); }
-
-  /* Reticle for hit-test */
-  .reticle-msg { color: #fff; font-size: 14px; text-shadow: 0 1px 4px rgba(0,0,0,0.7); text-align: center; padding: 0 20px; }
+  #swipe-trail { position:fixed; top:0; left:0; width:100%; height:100%; z-index:5; pointer-events:none; }
+  #swipe-trail line { stroke:rgba(255,255,255,0.6); stroke-width:3; stroke-linecap:round; filter:drop-shadow(0 0 6px rgba(255,200,50,0.8)); }
 </style>
 </head>
 <body>
@@ -85,17 +68,14 @@
 <video id="camera-video" autoplay playsinline muted></video>
 <svg id="swipe-trail"></svg>
 
-<div id="dom-overlay">
+<div id="ui-overlay">
   <div class="top-bar" id="top-bar" style="display:none;">
     <div class="score-display" id="score">0%</div>
     <div class="progress-bar-container"><div class="progress-bar-fill" id="progress-fill"></div></div>
   </div>
   <div class="swipe-hint" id="swipe-hint" style="display:none;">
     &#9729; Spazza via le nuvole! &#9729;<br>
-    <span style="font-size:14px; font-weight:400;">Fai swipe sullo schermo</span>
-  </div>
-  <div class="reticle-msg" id="reticle-msg" style="display:none;">
-    Punta il telefono verso il pavimento per ancorare la scena
+    <span style="font-size:14px;font-weight:400;">Fai swipe sullo schermo</span>
   </div>
   <div style="height:60px;"></div>
 </div>
@@ -105,8 +85,7 @@
   <div class="splash-title">Cambia il Clima<br>della Tua Vita</div>
   <div class="splash-subtitle">Spazza via le nuvole grigie e fai spuntare l'arcobaleno! Un'esperienza in realt&agrave; aumentata.</div>
   <button class="start-btn" id="start-btn">GIOCA ORA</button>
-  <div class="camera-note">Sar&agrave; richiesto l'accesso alla fotocamera</div>
-  <div id="xr-status"></div>
+  <div class="camera-note">Sar&agrave; richiesto l'accesso a fotocamera e giroscopio</div>
 </div>
 
 <div id="win-screen">
@@ -126,43 +105,93 @@
 // GLOBALS
 // ═══════════════════════════════════════════════════════════════════
 var STATE = {
-  phase: 'splash',    // splash | placing | playing | won
+  phase: 'splash',
   cloudsTotal: 0,
   cloudsCleared: 0,
   swipePoints: [],
   isSwiping: false,
-  xrSupported: false,
-  xrMode: false,       // true when running inside WebXR session
-  sceneAnchored: false, // true after user taps to place
+  hasGyro: false,
 };
 
 var scene, camera, renderer;
 var clouds = [];
 var rainbowGroup, rainbowGlowGroup, rainbowTargetOpacity = 0;
 var particleSystem;
-var sceneRoot; // parent group — moved to anchor position in XR
-var reticleMesh, hitTestSource = null, hitTestSourceRequested = false;
-var xrSession = null;
-
+var sceneRoot;
 var raycaster = new THREE.Raycaster();
 var pointer = new THREE.Vector2();
 var burstParticles = [];
 var clock = new THREE.Clock();
 
+// Gyroscope orientation tracking
+var deviceAlpha = 0, deviceBeta = 0, deviceGamma = 0;
+var initialAlpha = null, initialBeta = null;
+var orientationEuler = new THREE.Euler();
+var orientationQuaternion = new THREE.Quaternion();
+
 // ═══════════════════════════════════════════════════════════════════
-// CHECK WEBXR SUPPORT
+// DEVICE ORIENTATION — iOS permission + tracking
 // ═══════════════════════════════════════════════════════════════════
-(async function checkXR() {
-  if (navigator.xr) {
+async function requestGyroPermission() {
+  // iOS 13+ requires explicit permission
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
     try {
-      STATE.xrSupported = await navigator.xr.isSessionSupported('immersive-ar');
-    } catch (e) { STATE.xrSupported = false; }
+      var permission = await DeviceOrientationEvent.requestPermission();
+      return permission === 'granted';
+    } catch (e) {
+      console.warn('Gyro permission denied:', e);
+      return false;
+    }
   }
-  var statusEl = document.getElementById('xr-status');
-  statusEl.textContent = STATE.xrSupported
-    ? 'WebXR AR disponibile — esperienza immersiva'
-    : 'Modalit\u00e0 fotocamera (WebXR AR non supportato su questo device)';
-})();
+  // Android and older iOS — just check if events fire
+  return true;
+}
+
+function startGyroTracking() {
+  window.addEventListener('deviceorientation', function(e) {
+    if (e.alpha === null) return;
+
+    STATE.hasGyro = true;
+
+    // Store initial orientation as reference
+    if (initialAlpha === null) {
+      initialAlpha = e.alpha;
+      initialBeta = e.beta;
+    }
+
+    // Relative to initial orientation
+    deviceAlpha = e.alpha - initialAlpha; // yaw (left/right)
+    deviceBeta = e.beta - initialBeta;    // pitch (up/down)
+    deviceGamma = e.gamma;                // roll (tilt)
+  }, true);
+}
+
+function updateCameraFromGyro() {
+  if (!STATE.hasGyro) return;
+
+  // Convert device orientation to camera rotation
+  // Phone in portrait: beta ~ 90 when upright, gamma ~ 0
+  var alphaRad = THREE.MathUtils.degToRad(deviceAlpha);
+  var betaRad = THREE.MathUtils.degToRad(deviceBeta);
+  var gammaRad = THREE.MathUtils.degToRad(deviceGamma);
+
+  // Smooth damping
+  var damping = 0.08;
+
+  // Map device orientation to camera look direction
+  // Alpha = yaw around Y axis, Beta = pitch around X axis
+  var targetRotX = -betaRad * 0.5;  // look up/down
+  var targetRotY = -alphaRad * 0.5;  // look left/right
+
+  // Clamp to reasonable range
+  targetRotX = THREE.MathUtils.clamp(targetRotX, -Math.PI / 3, Math.PI / 3);
+  targetRotY = THREE.MathUtils.clamp(targetRotY, -Math.PI / 2, Math.PI / 2);
+
+  // Lerp for smooth motion
+  camera.rotation.x += (targetRotX - camera.rotation.x) * damping;
+  camera.rotation.y += (targetRotY - camera.rotation.y) * damping;
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // THREE.JS SETUP
@@ -171,7 +200,7 @@ function initThree() {
   scene = new THREE.Scene();
 
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
-  camera.position.set(0, 1.6, 3); // only used in non-XR fallback
+  camera.position.set(0, 1.2, 0);  // eye height, at origin
 
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -180,44 +209,29 @@ function initThree() {
   renderer.domElement.id = 'three-canvas';
   document.body.insertBefore(renderer.domElement, document.getElementById('swipe-trail'));
 
-  // Enable XR
-  renderer.xr.enabled = true;
-
   // Lighting
   scene.add(new THREE.AmbientLight(0xffffff, 0.7));
   var dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
   dirLight.position.set(2, 5, 3);
   scene.add(dirLight);
+  var backLight = new THREE.PointLight(0xffeedd, 0.4, 20);
+  backLight.position.set(-2, 3, -5);
+  scene.add(backLight);
 
-  // Scene root — everything attaches here; in XR mode we move this to the anchor point
+  // Scene root — all AR content goes here
   sceneRoot = new THREE.Group();
+  sceneRoot.position.set(0, 0, -3); // 3 meters in front of camera
   scene.add(sceneRoot);
 
-  // Build content
   createRainbow3D();
   createClouds();
   createSparkles();
-
-  // Reticle for hit-test placement
-  createReticle();
 
   window.addEventListener('resize', onResize);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// RETICLE (hit-test indicator)
-// ═══════════════════════════════════════════════════════════════════
-function createReticle() {
-  var ringGeo = new THREE.RingGeometry(0.08, 0.11, 32).rotateX(-Math.PI / 2);
-  var ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
-  reticleMesh = new THREE.Mesh(ringGeo, ringMat);
-  reticleMesh.visible = false;
-  reticleMesh.matrixAutoUpdate = false;
-  scene.add(reticleMesh);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// 3D RAINBOW — REAL VOLUMETRIC OBJECT
+// 3D RAINBOW — VOLUMETRIC, ANCHORED IN SPACE
 // ═══════════════════════════════════════════════════════════════════
 function createRainbow3D() {
   rainbowGroup = new THREE.Group();
@@ -233,9 +247,9 @@ function createRainbow3D() {
     { hex: 0x9900ff, emissive: 0x440066 },
   ];
 
-  var baseRadius = 1.2;
-  var bandSpacing = 0.08;
-  var tubeRadius = 0.035;
+  var baseRadius = 1.5;
+  var bandSpacing = 0.1;
+  var tubeRadius = 0.045;
 
   colors.forEach(function(col, i) {
     var radius = baseRadius - i * bandSpacing;
@@ -269,41 +283,33 @@ function createRainbow3D() {
     rainbowGlowGroup.add(glowTorus);
   });
 
-  // Position relative to scene root (ground level, in front of user)
-  rainbowGroup.position.set(0, 0, -2);
-  rainbowGroup.rotation.x = 0; // upright, base on ground
+  // Position: base on ground, behind clouds
+  rainbowGroup.position.set(0, -1.2, -2);
   rainbowGlowGroup.position.copy(rainbowGroup.position);
-  rainbowGlowGroup.rotation.copy(rainbowGroup.rotation);
 
   sceneRoot.add(rainbowGroup);
   sceneRoot.add(rainbowGlowGroup);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CLOUDS
+// CLOUDS — float in 3D space between camera and rainbow
 // ═══════════════════════════════════════════════════════════════════
 function createCartoonCloud(s) {
   s = s || 1;
   var g = new THREE.Group();
   var m = new THREE.MeshToonMaterial({ color: 0xf0f0f0, transparent: true, opacity: 1 });
-
   var configs = [
-    { r: 0.5, x: 0, y: 0, z: 0 },
-    { r: 0.4, x: -0.45, y: -0.05, z: 0.1 },
-    { r: 0.45, x: 0.5, y: 0, z: -0.05 },
-    { r: 0.35, x: -0.2, y: 0.25, z: 0.05 },
-    { r: 0.38, x: 0.25, y: 0.22, z: -0.1 },
-    { r: 0.3, x: -0.6, y: -0.15, z: 0 },
-    { r: 0.32, x: 0.7, y: -0.1, z: 0.05 },
+    { r:0.5, x:0, y:0, z:0 }, { r:0.4, x:-0.45, y:-0.05, z:0.1 },
+    { r:0.45, x:0.5, y:0, z:-0.05 }, { r:0.35, x:-0.2, y:0.25, z:0.05 },
+    { r:0.38, x:0.25, y:0.22, z:-0.1 }, { r:0.3, x:-0.6, y:-0.15, z:0 },
+    { r:0.32, x:0.7, y:-0.1, z:0.05 },
   ];
-
   configs.forEach(function(c) {
     var geo = new THREE.SphereGeometry(c.r * s, 12, 10);
     var mesh = new THREE.Mesh(geo, m.clone());
     mesh.position.set(c.x * s, c.y * s, c.z * s);
     g.add(mesh);
   });
-
   return g;
 }
 
@@ -313,16 +319,15 @@ function createClouds() {
   var grays = [0xd0d0d0, 0xc8c8c8, 0xbababa, 0xdcdcdc, 0xb0b0b0];
 
   for (var i = 0; i < count; i++) {
-    var scale = 0.2 + Math.random() * 0.25; // smaller for AR real-world scale
+    var scale = 0.2 + Math.random() * 0.25;
     var cloud = createCartoonCloud(scale);
 
-    // Spread around the rainbow in 3D space
     var angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
-    var radius = 0.4 + Math.random() * 1.2;
+    var radius = 0.5 + Math.random() * 1.2;
     cloud.position.set(
       Math.cos(angle) * radius,
-      0.3 + Math.random() * 1.2,  // above ground
-      -1.5 - Math.random() * 1.5   // between camera and rainbow
+      -0.3 + Math.random() * 1.8,
+      0.5 + Math.random() * 1.5   // between camera and rainbow
     );
 
     var tint = grays[Math.floor(Math.random() * grays.length)];
@@ -332,7 +337,7 @@ function createClouds() {
 
     cloud.userData = {
       cleared: false,
-      originalY: cloud.position.y,
+      originalPos: cloud.position.clone(),
       bobSpeed: 0.3 + Math.random() * 0.4,
       bobAmp: 0.01 + Math.random() * 0.015,
       driftSpeed: 0.05 + Math.random() * 0.1,
@@ -347,197 +352,47 @@ function createClouds() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// SPARKLE PARTICLES
+// SPARKLES
 // ═══════════════════════════════════════════════════════════════════
 function createSparkles() {
   var count = 150;
   var geometry = new THREE.BufferGeometry();
   var positions = new Float32Array(count * 3);
   var velocities = [];
-
   for (var i = 0; i < count; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 3;
-    positions[i * 3 + 1] = Math.random() * 2;
-    positions[i * 3 + 2] = -1 - Math.random() * 2;
-    velocities.push({
-      x: (Math.random() - 0.5) * 0.005,
-      y: Math.random() * 0.008 + 0.002,
-      z: 0,
-    });
+    positions[i*3] = (Math.random() - 0.5) * 3;
+    positions[i*3+1] = -1 + Math.random() * 3;
+    positions[i*3+2] = -1 - Math.random() * 2;
+    velocities.push({ x: (Math.random()-0.5)*0.005, y: Math.random()*0.008+0.002, z: 0 });
   }
-
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
   var material = new THREE.PointsMaterial({
-    color: 0xffee88, size: 0.02, transparent: true, opacity: 0,
+    color: 0xffee88, size: 0.025, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending,
   });
-
   particleSystem = new THREE.Points(geometry, material);
   particleSystem.userData.velocities = velocities;
   sceneRoot.add(particleSystem);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// START — WebXR AR or FALLBACK
+// CAMERA
 // ═══════════════════════════════════════════════════════════════════
-async function startExperience() {
-  initThree();
-
-  if (STATE.xrSupported) {
-    await startWebXR();
-  } else {
-    await startFallback();
-  }
-}
-
-// ─── WebXR AR Session ────────────────────────────────────────────
-async function startWebXR() {
-  STATE.xrMode = true;
-
-  // Hide sceneRoot until anchored
-  sceneRoot.visible = false;
-
-  try {
-    xrSession = await navigator.xr.requestSession('immersive-ar', {
-      requiredFeatures: ['hit-test'],
-      optionalFeatures: ['dom-overlay'],
-      domOverlay: { root: document.getElementById('dom-overlay') },
-    });
-
-    renderer.xr.setReferenceSpaceType('local');
-    await renderer.xr.setSession(xrSession);
-
-    // Show placement message
-    document.getElementById('reticle-msg').style.display = 'block';
-
-    STATE.phase = 'placing';
-
-    // Tap to place
-    xrSession.addEventListener('select', onXRSelect);
-
-    // Start XR render loop
-    renderer.setAnimationLoop(renderXR);
-
-  } catch (e) {
-    console.warn('WebXR session failed, falling back:', e);
-    STATE.xrMode = false;
-    await startFallback();
-  }
-}
-
-function onXRSelect() {
-  if (STATE.phase === 'placing' && reticleMesh.visible) {
-    // Anchor scene at reticle position
-    var pos = new THREE.Vector3();
-    var quat = new THREE.Quaternion();
-    var scale = new THREE.Vector3();
-    reticleMesh.matrix.decompose(pos, quat, scale);
-
-    sceneRoot.position.copy(pos);
-    sceneRoot.quaternion.copy(quat);
-    sceneRoot.visible = true;
-    reticleMesh.visible = false;
-    STATE.sceneAnchored = true;
-
-    document.getElementById('reticle-msg').style.display = 'none';
-
-    startGameplay();
-  }
-}
-
-function renderXR(timestamp, frame) {
-  if (!frame) return;
-
-  var referenceSpace = renderer.xr.getReferenceSpace();
-  var session = renderer.xr.getSession();
-
-  // Hit-test for placement phase
-  if (STATE.phase === 'placing') {
-    if (!hitTestSourceRequested) {
-      session.requestReferenceSpace('viewer').then(function(viewerSpace) {
-        session.requestHitTestSource({ space: viewerSpace }).then(function(source) {
-          hitTestSource = source;
-        });
-      });
-      hitTestSourceRequested = true;
-    }
-
-    if (hitTestSource) {
-      var hitTestResults = frame.getHitTestResults(hitTestSource);
-      if (hitTestResults.length > 0) {
-        var hit = hitTestResults[0];
-        var pose = hit.getPose(referenceSpace);
-        reticleMesh.visible = true;
-        reticleMesh.matrix.fromArray(pose.transform.matrix);
-      } else {
-        reticleMesh.visible = false;
-      }
-    }
-  }
-
-  // Animate scene
-  animateScene();
-
-  renderer.render(scene, camera);
-}
-
-// ─── Fallback (no WebXR) ─────────────────────────────────────────
-async function startFallback() {
-  STATE.xrMode = false;
-
-  // Camera background
-  var video = document.getElementById('camera-video');
-  video.style.display = 'block';
+async function startCamera() {
   try {
     var stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
     });
+    var video = document.getElementById('camera-video');
     video.srcObject = stream;
     await video.play();
+    return true;
   } catch (e) {
-    video.style.background = 'linear-gradient(180deg, #87CEEB 0%, #b0e0e6 40%, #e0f0ff 100%)';
+    console.warn('Camera not available:', e);
+    document.getElementById('camera-video').style.background =
+      'linear-gradient(180deg, #87CEEB 0%, #b0e0e6 40%, #e0f0ff 100%)';
+    return false;
   }
-
-  // Position scene in front of camera
-  sceneRoot.position.set(0, -0.5, 0);
-  sceneRoot.visible = true;
-  STATE.sceneAnchored = true;
-
-  startGameplay();
-
-  // Non-XR render loop
-  function renderFallback() {
-    requestAnimationFrame(renderFallback);
-    animateScene();
-    renderer.render(scene, camera);
-  }
-  renderFallback();
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// GAMEPLAY START
-// ═══════════════════════════════════════════════════════════════════
-function startGameplay() {
-  STATE.phase = 'playing';
-
-  document.getElementById('top-bar').style.display = 'flex';
-  document.getElementById('swipe-hint').style.display = 'block';
-
-  setTimeout(function() {
-    var hint = document.getElementById('swipe-hint');
-    if (hint) { hint.style.transition = 'opacity 1s'; hint.style.opacity = '0'; }
-    setTimeout(function() { if (hint) hint.style.display = 'none'; }, 1000);
-  }, 4000);
-
-  // Swipe input on the overlay (works in both XR and fallback)
-  var overlay = document.getElementById('dom-overlay');
-  overlay.addEventListener('touchstart', onPointerDown, { passive: false });
-  overlay.addEventListener('touchmove', onPointerMove, { passive: false });
-  overlay.addEventListener('touchend', onPointerUp);
-  overlay.addEventListener('mousedown', onPointerDown);
-  overlay.addEventListener('mousemove', onPointerMove);
-  overlay.addEventListener('mouseup', onPointerUp);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -578,10 +433,8 @@ function drawSwipeTrail() {
   for (var i = 1; i < pts.length; i++) {
     var opacity = i / pts.length;
     var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-    line.setAttribute('x1', pts[i - 1].x);
-    line.setAttribute('y1', pts[i - 1].y);
-    line.setAttribute('x2', pts[i].x);
-    line.setAttribute('y2', pts[i].y);
+    line.setAttribute('x1', pts[i-1].x); line.setAttribute('y1', pts[i-1].y);
+    line.setAttribute('x2', pts[i].x); line.setAttribute('y2', pts[i].y);
     line.style.stroke = 'rgba(255, 230, 100, ' + (opacity * 0.8) + ')';
     line.style.strokeWidth = String(2 + opacity * 4);
     swipeTrail.appendChild(line);
@@ -591,10 +444,7 @@ function drawSwipeTrail() {
 function checkSwipeHits(pos) {
   pointer.x = (pos.x / window.innerWidth) * 2 - 1;
   pointer.y = -(pos.y / window.innerHeight) * 2 + 1;
-
-  // In XR mode, use the XR camera
-  var cam = STATE.xrMode ? renderer.xr.getCamera(camera) : camera;
-  raycaster.setFromCamera(pointer, cam);
+  raycaster.setFromCamera(pointer, camera);
 
   clouds.forEach(function(cloud) {
     if (cloud.userData.cleared || cloud.userData.dissolving) return;
@@ -607,18 +457,16 @@ function clearCloud(cloud) {
   cloud.userData.dissolving = true;
   cloud.userData.cleared = true;
   STATE.cloudsCleared++;
-  spawnBurstAt(cloud.position);
+  spawnBurstAt(cloud);
   updateProgress();
   if (STATE.cloudsCleared >= STATE.cloudsTotal) {
     setTimeout(function() { triggerWin(); }, 800);
   }
 }
 
-function spawnBurstAt(worldPos) {
-  // Convert cloud local position to world
-  var wPos = new THREE.Vector3();
-  wPos.copy(worldPos);
-  sceneRoot.localToWorld(wPos);
+function spawnBurstAt(cloud) {
+  var worldPos = new THREE.Vector3();
+  cloud.getWorldPosition(worldPos);
 
   for (var i = 0; i < 8; i++) {
     var geo = new THREE.SphereGeometry(0.012, 6, 6);
@@ -627,11 +475,9 @@ function spawnBurstAt(worldPos) {
       transparent: true, opacity: 1,
     });
     var p = new THREE.Mesh(geo, mat);
-    p.position.copy(wPos);
+    p.position.copy(worldPos);
     p.userData.velocity = new THREE.Vector3(
-      (Math.random() - 0.5) * 0.05,
-      (Math.random() - 0.5) * 0.05,
-      (Math.random() - 0.5) * 0.02
+      (Math.random()-0.5)*0.05, (Math.random()-0.5)*0.05, (Math.random()-0.5)*0.02
     );
     p.userData.life = 1.0;
     scene.add(p);
@@ -662,34 +508,37 @@ function triggerWin() {
 function startConfetti() {
   var canvas = document.getElementById('confetti-canvas');
   var ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
   var confetti = [];
   var colors = ['#ff0000','#ff8800','#ffff00','#00cc00','#0066ff','#8800ff','#ff69b4','#ffd700'];
   for (var i = 0; i < 150; i++) {
-    confetti.push({ x: Math.random()*canvas.width, y: -20-Math.random()*canvas.height,
-      w: 6+Math.random()*8, h: 4+Math.random()*4,
-      color: colors[Math.floor(Math.random()*colors.length)],
-      vy: 1.5+Math.random()*3, vx: (Math.random()-0.5)*2,
-      rot: Math.random()*Math.PI*2, rotSpeed: (Math.random()-0.5)*0.2 });
+    confetti.push({ x:Math.random()*canvas.width, y:-20-Math.random()*canvas.height,
+      w:6+Math.random()*8, h:4+Math.random()*4,
+      color:colors[Math.floor(Math.random()*colors.length)],
+      vy:1.5+Math.random()*3, vx:(Math.random()-0.5)*2,
+      rot:Math.random()*Math.PI*2, rotSpeed:(Math.random()-0.5)*0.2 });
   }
   (function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
     confetti.forEach(function(c) {
-      c.x += c.vx; c.y += c.vy; c.rot += c.rotSpeed;
-      if (c.y > canvas.height + 20) { c.y = -20; c.x = Math.random() * canvas.width; }
-      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot);
-      ctx.fillStyle = c.color; ctx.fillRect(-c.w/2, -c.h/2, c.w, c.h); ctx.restore();
+      c.x+=c.vx; c.y+=c.vy; c.rot+=c.rotSpeed;
+      if(c.y>canvas.height+20){c.y=-20;c.x=Math.random()*canvas.width;}
+      ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.rot);
+      ctx.fillStyle=c.color;ctx.fillRect(-c.w/2,-c.h/2,c.w,c.h);ctx.restore();
     });
     requestAnimationFrame(loop);
   })();
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// ANIMATE SCENE (shared by XR and fallback)
+// ANIMATION LOOP
 // ═══════════════════════════════════════════════════════════════════
-function animateScene() {
+function animate() {
+  requestAnimationFrame(animate);
   var t = clock.getElapsedTime();
+
+  // Update camera from gyroscope
+  updateCameraFromGyro();
 
   // Clouds
   clouds.forEach(function(cloud) {
@@ -704,12 +553,12 @@ function animateScene() {
       cloud.scale.multiplyScalar(0.985);
       if (ud.dissolveProgress >= 1) sceneRoot.remove(cloud);
     } else {
-      cloud.position.y = ud.originalY + Math.sin(t * ud.bobSpeed + ud.phase) * ud.bobAmp;
-      cloud.position.x += Math.sin(t * ud.driftSpeed + ud.phase) * 0.0002;
+      cloud.position.y = ud.originalPos.y + Math.sin(t * ud.bobSpeed + ud.phase) * ud.bobAmp;
+      cloud.position.x = ud.originalPos.x + Math.sin(t * ud.driftSpeed + ud.phase) * 0.02;
     }
   });
 
-  // Rainbow
+  // Rainbow — 3D anchored, subtle sway
   if (rainbowGroup) {
     rainbowGroup.children.forEach(function(torus, i) {
       var target = rainbowTargetOpacity;
@@ -720,11 +569,10 @@ function animateScene() {
         torus.scale.set(b, b, b);
       }
     });
-    // Subtle Y-axis sway — feels anchored but alive
-    rainbowGroup.rotation.y = Math.sin(t * 0.25) * 0.05;
+    rainbowGroup.rotation.y = Math.sin(t * 0.25) * 0.03;
   }
 
-  // Rainbow glow
+  // Glow
   if (rainbowGlowGroup) {
     rainbowGlowGroup.children.forEach(function(glow) {
       glow.material.opacity += (rainbowTargetOpacity * 0.12 - glow.material.opacity) * 0.03;
@@ -741,14 +589,14 @@ function animateScene() {
     for (var i = 0; i < vels.length; i++) {
       positions[i*3] += vels[i].x;
       positions[i*3+1] += vels[i].y;
-      if (positions[i*3+1] > 2.5) positions[i*3+1] = 0;
+      if (positions[i*3+1] > 2.5) positions[i*3+1] = -1;
       if (positions[i*3] > 2) positions[i*3] = -2;
       if (positions[i*3] < -2) positions[i*3] = 2;
     }
     particleSystem.geometry.attributes.position.needsUpdate = true;
   }
 
-  // Burst particles (in world space)
+  // Burst particles
   for (var j = burstParticles.length - 1; j >= 0; j--) {
     var bp = burstParticles[j];
     bp.position.add(bp.userData.velocity);
@@ -757,26 +605,61 @@ function animateScene() {
     bp.material.opacity = Math.max(0, bp.userData.life);
     if (bp.userData.life <= 0) { scene.remove(bp); burstParticles.splice(j, 1); }
   }
+
+  renderer.render(scene, camera);
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // RESIZE
 // ═══════════════════════════════════════════════════════════════════
 function onResize() {
-  if (!STATE.xrMode) {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// START BUTTON
+// START
 // ═══════════════════════════════════════════════════════════════════
 document.getElementById('start-btn').addEventListener('click', async function() {
+  // Request gyro permission (required on iOS 13+)
+  var gyroGranted = await requestGyroPermission();
+  if (gyroGranted) {
+    startGyroTracking();
+  }
+
+  // Init 3D
+  initThree();
+
+  // Start camera
+  await startCamera();
+
+  // Hide splash
   document.getElementById('splash-screen').classList.add('hidden');
   setTimeout(function() { document.getElementById('splash-screen').style.display = 'none'; }, 800);
-  await startExperience();
+
+  // Show gameplay UI
+  STATE.phase = 'playing';
+  document.getElementById('top-bar').style.display = 'flex';
+  document.getElementById('swipe-hint').style.display = 'block';
+
+  setTimeout(function() {
+    var hint = document.getElementById('swipe-hint');
+    if (hint) { hint.style.transition = 'opacity 1s'; hint.style.opacity = '0'; }
+    setTimeout(function() { if (hint) hint.style.display = 'none'; }, 1000);
+  }, 4000);
+
+  // Input
+  var canvas = renderer.domElement;
+  canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+  canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+  canvas.addEventListener('touchend', onPointerUp);
+  canvas.addEventListener('mousedown', onPointerDown);
+  canvas.addEventListener('mousemove', onPointerMove);
+  canvas.addEventListener('mouseup', onPointerUp);
+
+  // Go!
+  animate();
 });
 
 document.getElementById('cta-btn').addEventListener('click', function() {

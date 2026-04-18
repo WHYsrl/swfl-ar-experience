@@ -4,65 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Cambia il Clima della Tua Vita | Super Win for Life</title>
-
-<!-- A-Frame + AR.js -->
-<script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
 
-  /* UI Overlay */
-  #ui-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 10; pointer-events: none;
-    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  #camera-video {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    object-fit:cover; z-index:0;
   }
-  #ui-overlay > * { pointer-events: auto; }
-
-  .top-bar {
-    width: 100%; padding: 16px 20px;
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .score-display {
-    background: rgba(255,255,255,0.9); border-radius: 20px;
-    padding: 8px 18px; font-weight: 700; font-size: 16px;
-    color: #1a1a2e; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
-  .progress-bar-container {
-    flex: 1; margin: 0 16px; height: 8px;
-    background: rgba(255,255,255,0.3); border-radius: 4px; overflow: hidden;
-  }
-  .progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00cc00, #0066ff, #8800ff);
-    border-radius: 4px; transition: width 0.5s ease; width: 0%;
+  #three-canvas {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    z-index:1; touch-action:none;
   }
 
-  .swipe-hint {
-    color: #fff; font-size: 18px; font-weight: 600;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
-    animation: pulse 2s ease-in-out infinite;
-    text-align: center; padding: 0 20px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  }
-  @keyframes pulse {
-    0%,100% { opacity:0.7; transform:scale(1); }
-    50% { opacity:1; transform:scale(1.05); }
-  }
-
-  /* Splash */
+  /* ---- SPLASH ---- */
   #splash-screen {
-    position: fixed; top:0; left:0; width:100%; height:100%; z-index:100;
+    position:fixed; top:0; left:0; width:100%; height:100%; z-index:100;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
     transition: opacity 0.8s ease, transform 0.8s ease;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
   #splash-screen.hidden { opacity:0; transform:scale(1.1); pointer-events:none; }
-
   .splash-title {
     font-size:28px; color:#fff; font-weight:800; text-align:center;
     line-height:1.3; margin-bottom:12px; text-transform:uppercase; letter-spacing:2px;
@@ -73,437 +38,824 @@
   }
   .splash-btn {
     background: linear-gradient(135deg, #e94560, #c23152);
-    color: #fff; border: none; border-radius: 30px;
-    padding: 16px 48px; font-size: 18px; font-weight: 700;
-    cursor: pointer; letter-spacing: 1px; text-transform: uppercase;
+    color:#fff; border:none; border-radius:30px;
+    padding:16px 48px; font-size:18px; font-weight:700;
+    cursor:pointer; letter-spacing:1px; text-transform:uppercase;
     box-shadow: 0 4px 20px rgba(233,69,96,0.4);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s;
   }
-  .splash-btn:active { transform: scale(0.95); }
-  .splash-marker-hint {
-    margin-top: 24px; color: rgba(255,255,255,0.5); font-size: 13px;
-    text-align: center; max-width: 280px; line-height: 1.4;
-  }
-  .splash-marker-hint a { color: #e94560; text-decoration: underline; }
+  .splash-btn:active { transform:scale(0.95); }
 
-  /* Win Screen */
+  /* ---- SCAN OVERLAY ---- */
+  #scan-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%; z-index:50;
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
+  #scan-overlay.active { display:flex; }
+  .scan-frame {
+    width:220px; height:220px; border:3px solid rgba(255,255,255,0.8);
+    border-radius:20px; position:relative;
+    animation: scan-pulse 2s ease-in-out infinite;
+  }
+  .scan-frame::before, .scan-frame::after {
+    content:''; position:absolute; width:40px; height:40px;
+    border-color:#e94560; border-style:solid;
+  }
+  .scan-frame::before { top:-2px; left:-2px; border-width:4px 0 0 4px; border-radius:20px 0 0 0; }
+  .scan-frame::after { bottom:-2px; right:-2px; border-width:0 4px 4px 0; border-radius:0 0 20px 0; }
+  .scan-line {
+    position:absolute; left:10%; width:80%; height:2px;
+    background: linear-gradient(90deg, transparent, #e94560, transparent);
+    animation: scan-move 2s ease-in-out infinite;
+  }
+  @keyframes scan-move { 0%,100%{top:10%;} 50%{top:85%;} }
+  @keyframes scan-pulse { 0%,100%{opacity:0.8;} 50%{opacity:1;} }
+  .scan-text {
+    color:#fff; font-size:18px; font-weight:600; margin-top:24px;
+    text-shadow:0 2px 10px rgba(0,0,0,0.7); text-align:center;
+    padding:0 30px; line-height:1.4;
+  }
+  .scan-text-small {
+    color:rgba(255,255,255,0.5); font-size:13px; margin-top:8px;
+    text-shadow:0 1px 4px rgba(0,0,0,0.5);
+  }
+
+  /* ---- CALIBRATING ---- */
+  #calibrating-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%; z-index:55;
+    display:none; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
+  #calibrating-overlay.active { display:flex; }
+  .calibrating-box {
+    background:rgba(0,0,0,0.7); border-radius:20px; padding:24px 36px;
+    text-align:center;
+  }
+  .calibrating-spinner {
+    width:40px; height:40px; border:3px solid rgba(255,255,255,0.2);
+    border-top-color:#e94560; border-radius:50%; margin:0 auto 12px;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .calibrating-text { color:#fff; font-size:16px; font-weight:600; }
+
+  /* ---- GAME UI ---- */
+  #ui-overlay {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    z-index:10; pointer-events:none;
+    display:none; flex-direction:column; align-items:center; justify-content:space-between;
+  }
+  #ui-overlay.active { display:flex; }
+  #ui-overlay > * { pointer-events:auto; }
+  .top-bar {
+    width:100%; padding:16px 20px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .score-display {
+    background:rgba(255,255,255,0.9); border-radius:20px;
+    padding:8px 18px; font-weight:700; font-size:16px;
+    color:#1a1a2e; box-shadow:0 2px 12px rgba(0,0,0,0.15);
+  }
+  .progress-bar-container {
+    flex:1; margin:0 16px; height:8px;
+    background:rgba(255,255,255,0.3); border-radius:4px; overflow:hidden;
+  }
+  .progress-bar-fill {
+    height:100%; border-radius:4px; transition:width 0.5s ease; width:0%;
+    background: linear-gradient(90deg, #ff0000,#ff8800,#ffff00,#00cc00,#0066ff,#8800ff);
+  }
+  .swipe-hint {
+    color:#fff; font-size:18px; font-weight:600;
+    text-shadow:0 2px 8px rgba(0,0,0,0.5);
+    animation: pulse 2s ease-in-out infinite;
+    text-align:center; padding:0 20px 40px;
+  }
+  @keyframes pulse { 0%,100%{opacity:0.7;transform:scale(1);} 50%{opacity:1;transform:scale(1.05);} }
+
+  /* Swipe trail SVG */
+  #swipe-trail {
+    position:fixed; top:0; left:0; width:100%; height:100%;
+    z-index:5; pointer-events:none;
+  }
+
+  /* ---- WIN SCREEN ---- */
   #win-screen {
-    position: fixed; top:0; left:0; width:100%; height:100%; z-index:200;
+    position:fixed; top:0; left:0; width:100%; height:100%; z-index:200;
     background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 50%, #16213e 100%);
-    display: none; flex-direction: column; align-items: center; justify-content: center;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display:none; flex-direction:column; align-items:center; justify-content:center;
   }
-  #win-screen.visible { display: flex; }
-  .win-rainbow-emoji { font-size: 64px; margin-bottom: 16px; }
+  #win-screen.visible { display:flex; }
+  .win-emoji { font-size:64px; margin-bottom:16px; }
   .win-title {
-    font-size: 32px; color: #fff; font-weight: 800; text-align: center;
-    margin-bottom: 8px; text-transform: uppercase;
-    background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00cc00, #0066ff, #8800ff);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    font-size:32px; color:#fff; font-weight:800; text-align:center;
+    margin-bottom:8px; text-transform:uppercase;
+    background: linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00cc00,#0066ff,#8800ff);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
   }
-  .win-brand {
-    font-size: 22px; color: #e94560; font-weight: 700; margin-bottom: 20px;
-  }
+  .win-brand { font-size:22px; color:#e94560; font-weight:700; margin-bottom:20px; }
   .win-message {
-    font-size: 16px; color: rgba(255,255,255,0.8); text-align: center;
-    max-width: 300px; line-height: 1.5; margin-bottom: 32px;
+    font-size:16px; color:rgba(255,255,255,0.8); text-align:center;
+    max-width:300px; line-height:1.5; margin-bottom:32px;
   }
   .win-cta {
     background: linear-gradient(135deg, #00c853, #009624);
-    color: #fff; border: none; border-radius: 30px;
-    padding: 16px 40px; font-size: 18px; font-weight: 700;
-    cursor: pointer; letter-spacing: 1px; text-transform: uppercase;
-    box-shadow: 0 4px 20px rgba(0,200,83,0.4);
+    color:#fff; border:none; border-radius:30px;
+    padding:16px 40px; font-size:18px; font-weight:700;
+    cursor:pointer; letter-spacing:1px; text-transform:uppercase;
+    box-shadow:0 4px 20px rgba(0,200,83,0.4);
   }
 
   /* Confetti */
   .confetti-piece {
-    position: fixed; width: 10px; height: 10px;
-    z-index: 210; pointer-events: none;
+    position:fixed; width:10px; height:10px;
+    z-index:210; pointer-events:none;
     animation: confetti-fall linear forwards;
   }
   @keyframes confetti-fall {
-    0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    0% { transform:translateY(-20px) rotate(0deg); opacity:1; }
+    100% { transform:translateY(110vh) rotate(720deg); opacity:0; }
   }
-
-  /* Marker hint floating */
-  #marker-hint {
-    position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
-    z-index: 15; background: rgba(0,0,0,0.7); color: #fff;
-    padding: 12px 24px; border-radius: 20px; font-size: 14px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    text-align: center; pointer-events: none;
-    animation: pulse 2s ease-in-out infinite;
-    transition: opacity 0.5s;
-  }
-  #marker-hint.hidden { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
 
-<!-- Splash Screen -->
+<!-- Camera Background -->
+<video id="camera-video" autoplay playsinline muted></video>
+<canvas id="three-canvas"></canvas>
+
+<!-- Swipe Trail -->
+<svg id="swipe-trail"></svg>
+
+<!-- Splash -->
 <div id="splash-screen">
   <div class="splash-title">Cambia il Clima<br>della Tua Vita</div>
   <div class="splash-subtitle">
-    Inquadra il marker per iniziare l'esperienza AR.<br>
-    Spazza via le nuvole e scopri l'arcobaleno!
+    Inquadra il QR code all'ingresso per scoprire il tuo arcobaleno!
   </div>
   <button class="splash-btn" id="start-btn">Inizia</button>
-  <div class="splash-marker-hint">
-    Stampa o mostra su schermo il marker HIRO<br>
-    <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Scarica marker HIRO</a>
+</div>
+
+<!-- Scan Overlay -->
+<div id="scan-overlay">
+  <div class="scan-frame"><div class="scan-line"></div></div>
+  <div class="scan-text">Inquadra il QR code</div>
+  <div class="scan-text-small">Punta la fotocamera verso il codice all'ingresso</div>
+</div>
+
+<!-- Calibrating -->
+<div id="calibrating-overlay">
+  <div class="calibrating-box">
+    <div class="calibrating-spinner"></div>
+    <div class="calibrating-text">Posizionamento in corso...</div>
   </div>
 </div>
 
-<!-- Marker Hint -->
-<div id="marker-hint" class="hidden">Inquadra il marker HIRO con la fotocamera</div>
-
-<!-- UI Overlay -->
-<div id="ui-overlay" style="display:none;">
+<!-- Game UI -->
+<div id="ui-overlay">
   <div class="top-bar">
     <div class="score-display" id="cloud-count">Nuvole: 0/12</div>
     <div class="progress-bar-container">
       <div class="progress-bar-fill" id="progress-fill"></div>
     </div>
   </div>
-  <div class="swipe-hint" id="swipe-hint">Tocca le nuvole per dissolverle!</div>
+  <div class="swipe-hint" id="swipe-hint">Spazza via le nuvole!</div>
 </div>
 
 <!-- Win Screen -->
 <div id="win-screen">
-  <div class="win-rainbow-emoji">🌈</div>
+  <div class="win-emoji">🌈</div>
   <div class="win-title">Hai cambiato il clima!</div>
   <div class="win-brand">Super Win for Life</div>
-  <div class="win-message">
-    Entra in ricevitoria e ritira il tuo gadget esclusivo!
-  </div>
+  <div class="win-message">Entra in ricevitoria e ritira il tuo gadget esclusivo!</div>
   <button class="win-cta" onclick="location.reload()">Gioca ancora</button>
 </div>
 
-<!-- A-Frame AR Scene -->
-<a-scene
-  embedded
-  arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-  renderer="logarithmicDepthBuffer: true; precision: medium;"
-  vr-mode-ui="enabled: false"
-  gesture-detector
-  id="ar-scene"
-  style="display:none;"
->
-  <a-marker preset="hiro" id="hiro-marker" emitevents="true"
-    smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="2">
-
-    <!-- Rainbow (hidden initially) -->
-    <a-entity id="rainbow-group" visible="false" position="0 2.2 0" rotation="-15 0 0" scale="0.6 0.6 0.6">
-    </a-entity>
-
-    <!-- Clouds container -->
-    <a-entity id="clouds-container"></a-entity>
-
-    <!-- Sparkles / particles -->
-    <a-entity id="sparkles-container"></a-entity>
-
-  </a-marker>
-
-  <a-entity camera></a-entity>
-</a-scene>
-
 <script>
 // ============================================================
-// GAME STATE
+// CONSTANTS
+// ============================================================
+const SCENE_DISTANCE    = 3.5;   // meters in front of camera at anchor time
+const SCENE_HEIGHT      = 0.5;   // slightly above eye level
+const CLOUD_COUNT       = 12;
+const GYRO_SMOOTHING    = 0.92;  // higher = smoother but laggier (0-1)
+const QR_SCAN_INTERVAL  = 200;   // ms between QR scans (saves CPU)
+
+// ============================================================
+// STATE
 // ============================================================
 const STATE = {
-  started: false,
-  markerVisible: false,
-  totalClouds: 12,
+  phase: 'SPLASH', // SPLASH → SCANNING → CALIBRATING → PLAYING → WON
   clearedClouds: 0,
-  clouds: [],
-  gameWon: false,
-  rainbowRevealed: false
+  clouds: [],          // { mesh, cleared }
+  rainbowGroup: null,
+  sparklesGroup: null,
+  sceneRoot: null,
+
+  // Gyro
+  gyroRef: null,       // initial orientation quaternion
+  currentQuat: new THREE.Quaternion(),
+  targetQuat:  new THREE.Quaternion(),
+
+  // QR
+  qrScanTimer: null,
+  qrDetectedData: null,
+
+  // Three
+  scene: null,
+  camera: null,
+  renderer: null,
+  raycaster: new THREE.Raycaster(),
 };
 
 // ============================================================
-// SPLASH & START
+// DOM REFS
 // ============================================================
-document.getElementById('start-btn').addEventListener('click', () => {
-  document.getElementById('splash-screen').classList.add('hidden');
-  document.getElementById('ar-scene').style.display = '';
-  document.getElementById('marker-hint').classList.remove('hidden');
+const $splash     = document.getElementById('splash-screen');
+const $scanOv     = document.getElementById('scan-overlay');
+const $calibOv    = document.getElementById('calibrating-overlay');
+const $uiOv       = document.getElementById('ui-overlay');
+const $winScreen  = document.getElementById('win-screen');
+const $cloudCount = document.getElementById('cloud-count');
+const $progressFill = document.getElementById('progress-fill');
+const $swipeHint  = document.getElementById('swipe-hint');
+const $video      = document.getElementById('camera-video');
+const $canvas     = document.getElementById('three-canvas');
+const $trail      = document.getElementById('swipe-trail');
 
+// ============================================================
+// START BUTTON
+// ============================================================
+document.getElementById('start-btn').addEventListener('click', async () => {
+  // Request gyroscope permission (iOS 13+)
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm !== 'granted') {
+        alert('Permesso giroscopio necessario per l\'esperienza AR.');
+        return;
+      }
+    } catch (e) {
+      console.warn('Gyro permission error:', e);
+    }
+  }
+
+  // Start camera
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    $video.srcObject = stream;
+    await $video.play();
+  } catch (e) {
+    alert('Fotocamera non disponibile.');
+    return;
+  }
+
+  // Init Three.js
+  initThree();
+
+  // Transition to scanning
+  $splash.classList.add('hidden');
   setTimeout(() => {
-    STATE.started = true;
-    initGame();
-  }, 1000);
+    STATE.phase = 'SCANNING';
+    $scanOv.classList.add('active');
+    startQRScanning();
+    startGyroListening();
+  }, 800);
 });
 
 // ============================================================
-// MARKER EVENTS
+// THREE.JS SETUP
 // ============================================================
-function setupMarkerEvents() {
-  const marker = document.getElementById('hiro-marker');
-  marker.addEventListener('markerFound', () => {
-    STATE.markerVisible = true;
-    document.getElementById('marker-hint').classList.add('hidden');
-    document.getElementById('ui-overlay').style.display = 'flex';
+function initThree() {
+  STATE.scene = new THREE.Scene();
+
+  STATE.camera = new THREE.PerspectiveCamera(
+    70, window.innerWidth / window.innerHeight, 0.01, 100
+  );
+  STATE.camera.position.set(0, 0, 0);
+
+  STATE.renderer = new THREE.WebGLRenderer({
+    canvas: $canvas, alpha: true, antialias: true
   });
-  marker.addEventListener('markerLost', () => {
-    STATE.markerVisible = false;
-    if (!STATE.gameWon) {
-      document.getElementById('marker-hint').classList.remove('hidden');
-    }
+  STATE.renderer.setSize(window.innerWidth, window.innerHeight);
+  STATE.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  STATE.renderer.setClearColor(0x000000, 0);
+
+  // Lighting
+  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  STATE.scene.add(ambient);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(2, 4, 1);
+  STATE.scene.add(dirLight);
+
+  // Scene root (will be positioned on QR detection)
+  STATE.sceneRoot = new THREE.Group();
+  STATE.sceneRoot.visible = false;
+  STATE.scene.add(STATE.sceneRoot);
+
+  // Handle resize
+  window.addEventListener('resize', () => {
+    STATE.camera.aspect = window.innerWidth / window.innerHeight;
+    STATE.camera.updateProjectionMatrix();
+    STATE.renderer.setSize(window.innerWidth, window.innerHeight);
   });
+
+  // Start render loop
+  animate();
 }
 
 // ============================================================
-// CREATE RAINBOW (A-Frame entities)
+// QR CODE SCANNING
+// ============================================================
+function startQRScanning() {
+  const scanCanvas = document.createElement('canvas');
+  const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+
+  function scan() {
+    if (STATE.phase !== 'SCANNING') return;
+
+    if ($video.readyState >= $video.HAVE_ENOUGH_DATA) {
+      // Use smaller resolution for faster scanning
+      const sw = 320;
+      const sh = Math.round(sw * ($video.videoHeight / $video.videoWidth));
+      scanCanvas.width = sw;
+      scanCanvas.height = sh;
+      scanCtx.drawImage($video, 0, 0, sw, sh);
+
+      const imageData = scanCtx.getImageData(0, 0, sw, sh);
+      const code = jsQR(imageData.data, sw, sh, { inversionAttempts: 'dontInvert' });
+
+      if (code) {
+        onQRDetected(code);
+        return;
+      }
+    }
+    STATE.qrScanTimer = setTimeout(scan, QR_SCAN_INTERVAL);
+  }
+  scan();
+}
+
+function onQRDetected(code) {
+  STATE.qrDetectedData = code;
+  STATE.phase = 'CALIBRATING';
+
+  // Haptic feedback
+  if (navigator.vibrate) navigator.vibrate(100);
+
+  // UI transition
+  $scanOv.classList.remove('active');
+  $calibOv.classList.add('active');
+
+  // Capture current gyro orientation as reference point
+  // Small delay to let gyro stabilize
+  setTimeout(() => {
+    captureGyroReference();
+    placeScene();
+
+    // Transition to playing
+    setTimeout(() => {
+      STATE.phase = 'PLAYING';
+      $calibOv.classList.remove('active');
+      $uiOv.classList.add('active');
+      STATE.sceneRoot.visible = true;
+      updateUI();
+    }, 1200);
+  }, 500);
+}
+
+// ============================================================
+// GYROSCOPE TRACKING
+// ============================================================
+let rawAlpha = 0, rawBeta = 0, rawGamma = 0;
+let gyroReady = false;
+
+function startGyroListening() {
+  window.addEventListener('deviceorientation', (e) => {
+    if (e.alpha === null) return;
+    rawAlpha = e.alpha;
+    rawBeta  = e.beta;
+    rawGamma = e.gamma;
+    gyroReady = true;
+  }, true);
+}
+
+function captureGyroReference() {
+  if (!gyroReady) return;
+  // Store reference orientation as quaternion
+  STATE.gyroRef = orientationToQuaternion(rawAlpha, rawBeta, rawGamma);
+}
+
+function orientationToQuaternion(alpha, beta, gamma) {
+  // Convert degrees to radians
+  const a = THREE.MathUtils.degToRad(alpha); // Z axis
+  const b = THREE.MathUtils.degToRad(beta);  // X axis
+  const g = THREE.MathUtils.degToRad(gamma); // Y axis
+
+  // Device orientation → rotation quaternion
+  // Based on W3C spec: ZXY rotation order
+  const cA = Math.cos(a / 2), sA = Math.sin(a / 2);
+  const cB = Math.cos(b / 2), sB = Math.sin(b / 2);
+  const cG = Math.cos(g / 2), sG = Math.sin(g / 2);
+
+  const q = new THREE.Quaternion();
+  q.set(
+    sB * cG * cA - cB * sG * sA,  // x
+    cB * sG * cA + sB * cG * sA,  // y
+    cB * cG * sA + sB * sG * cA,  // z
+    cB * cG * cA - sB * sG * sA   // w
+  );
+
+  // Rotate to match Three.js coordinate system (screen orientation)
+  // Apply -90 degree rotation around X to go from device to camera
+  const screenRotation = new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(1, 0, 0), -Math.PI / 2
+  );
+  q.multiply(screenRotation);
+
+  return q;
+}
+
+function updateCameraFromGyro() {
+  if (!gyroReady || !STATE.gyroRef) return;
+
+  const currentQ = orientationToQuaternion(rawAlpha, rawBeta, rawGamma);
+
+  // Compute relative rotation from reference orientation
+  const refInverse = STATE.gyroRef.clone().invert();
+  const relativeQ = currentQ.clone().multiply(refInverse);
+
+  // Smooth interpolation
+  STATE.targetQuat.copy(relativeQ);
+  STATE.currentQuat.slerp(STATE.targetQuat, 1 - GYRO_SMOOTHING);
+
+  STATE.camera.quaternion.copy(STATE.currentQuat);
+}
+
+// ============================================================
+// PLACE SCENE IN 3D
+// ============================================================
+function placeScene() {
+  // Position scene root in front of camera at reference orientation
+  STATE.sceneRoot.position.set(0, SCENE_HEIGHT, -SCENE_DISTANCE);
+
+  // Create all game objects
+  createRainbow();
+  createClouds();
+  createSparkles();
+}
+
+// ============================================================
+// RAINBOW (3D TorusGeometry bands)
 // ============================================================
 function createRainbow() {
-  const rainbowGroup = document.getElementById('rainbow-group');
-  const colors = ['#ff0000','#ff8800','#ffff00','#00cc00','#0088ff','#4400cc','#8800ff'];
-  const baseRadius = 2.0;
+  const group = new THREE.Group();
+  const colors = [0xff0000, 0xff8800, 0xffff00, 0x00cc00, 0x0088ff, 0x4400cc, 0x8800ff];
+  const baseRadius = 1.2;
 
   colors.forEach((color, i) => {
-    const r = baseRadius + i * 0.15;
-    // Create torus for each band
-    const band = document.createElement('a-torus');
-    band.setAttribute('radius', r);
-    band.setAttribute('radius-tubular', 0.07);
-    band.setAttribute('arc', 180);
-    band.setAttribute('segments-tubular', 48);
-    band.setAttribute('segments-radial', 12);
-    band.setAttribute('material', `color: ${color}; emissive: ${color}; emissiveIntensity: 0.4; side: double;`);
-    band.setAttribute('rotation', '0 0 0');
-    rainbowGroup.appendChild(band);
+    const r = baseRadius + i * 0.1;
+
+    // Main band
+    const geom = new THREE.TorusGeometry(r, 0.04, 12, 64, Math.PI);
+    const mat = new THREE.MeshStandardMaterial({
+      color: color,
+      emissive: color,
+      emissiveIntensity: 0.35,
+      roughness: 0.3,
+      metalness: 0.1,
+      side: THREE.DoubleSide,
+    });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.rotation.z = 0; // upright half-torus
+    group.add(mesh);
 
     // Glow layer
-    const glow = document.createElement('a-torus');
-    glow.setAttribute('radius', r);
-    glow.setAttribute('radius-tubular', 0.14);
-    glow.setAttribute('arc', 180);
-    glow.setAttribute('segments-tubular', 48);
-    glow.setAttribute('segments-radial', 8);
-    glow.setAttribute('material', `color: ${color}; opacity: 0.15; transparent: true; side: double;`);
-    glow.setAttribute('rotation', '0 0 0');
-    rainbowGroup.appendChild(glow);
+    const glowGeom = new THREE.TorusGeometry(r, 0.1, 8, 48, Math.PI);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: color,
+      transparent: true,
+      opacity: 0.12,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+    });
+    const glowMesh = new THREE.Mesh(glowGeom, glowMat);
+    group.add(glowMesh);
   });
+
+  group.rotation.x = -0.1; // slight tilt
+  group.position.set(0, -0.2, 0);
+  group.visible = false; // hidden until all clouds cleared
+  group.scale.set(0.01, 0.01, 0.01); // start tiny for reveal animation
+
+  STATE.rainbowGroup = group;
+  STATE.sceneRoot.add(group);
 }
 
 // ============================================================
-// CREATE CLOUDS
+// CLOUDS
 // ============================================================
 function createClouds() {
-  const container = document.getElementById('clouds-container');
-  const cloudPositions = [
-    {x:-1.2, y:2.8, z:0.3},  {x:0.8, y:3.0, z:-0.2},
-    {x:-0.3, y:2.5, z:0.8},  {x:1.5, y:2.6, z:0.5},
-    {x:-1.8, y:3.2, z:-0.3}, {x:0.2, y:3.4, z:-0.6},
-    {x:-0.8, y:2.0, z:0.4},  {x:1.0, y:2.2, z:-0.4},
-    {x:-1.5, y:1.8, z:0.0},  {x:0.5, y:1.6, z:0.6},
-    {x:-0.5, y:3.6, z:0.2},  {x:1.3, y:3.3, z:0.1}
-  ];
+  STATE.clouds = [];
 
-  cloudPositions.forEach((pos, i) => {
-    const scale = 0.3 + Math.random() * 0.25;
-    const cloud = document.createElement('a-entity');
-    cloud.setAttribute('position', `${pos.x} ${pos.y} ${pos.z}`);
-    cloud.setAttribute('scale', `${scale} ${scale} ${scale}`);
-    cloud.setAttribute('class', 'cloud clickable');
-    cloud.setAttribute('id', `cloud-${i}`);
-    cloud.dataset.index = i;
-    cloud.dataset.cleared = 'false';
+  // Distribute clouds in a dome pattern above the rainbow
+  const positions = [];
+  for (let i = 0; i < CLOUD_COUNT; i++) {
+    const angle = (i / CLOUD_COUNT) * Math.PI * 1.6 - 0.3;
+    const layer = Math.floor(i / 4);
+    const radius = 1.0 + layer * 0.6;
+    const height = 0.3 + layer * 0.5 + (Math.random() - 0.5) * 0.3;
+    const x = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.3;
+    const z = (Math.random() - 0.5) * 1.2;
+    positions.push({ x, y: height, z });
+  }
 
-    // Build cloud from spheres
-    const parts = [
-      {p:'0 0 0', s:'1 0.8 0.9'},
-      {p:'0.5 0.15 0.1', s:'0.8 0.7 0.75'},
-      {p:'-0.5 0.1 -0.1', s:'0.85 0.65 0.8'},
-      {p:'0.2 0.3 0.15', s:'0.7 0.55 0.65'},
-      {p:'-0.3 0.25 -0.15', s:'0.65 0.5 0.6'},
-      {p:'0.6 -0.05 -0.2', s:'0.55 0.5 0.55'},
-      {p:'-0.6 -0.1 0.2', s:'0.6 0.45 0.55'}
-    ];
+  positions.forEach((pos, i) => {
+    const cloud = createCloudMesh();
+    const scale = 0.2 + Math.random() * 0.15;
+    cloud.scale.set(scale, scale, scale);
+    cloud.position.set(pos.x, pos.y, pos.z);
 
-    parts.forEach(part => {
-      const sphere = document.createElement('a-sphere');
-      sphere.setAttribute('position', part.p);
-      sphere.setAttribute('scale', part.s);
-      sphere.setAttribute('material', 'color: #ffffff; opacity: 0.92; transparent: true; flatShading: true;');
-      sphere.setAttribute('class', 'clickable');
-      cloud.appendChild(sphere);
-    });
+    // Gentle floating animation data
+    cloud.userData = {
+      index: i,
+      cleared: false,
+      baseY: pos.y,
+      floatOffset: Math.random() * Math.PI * 2,
+      floatSpeed: 0.3 + Math.random() * 0.3,
+      floatAmp: 0.03 + Math.random() * 0.02,
+      dissolveProgress: 0,
+    };
 
-    container.appendChild(cloud);
+    STATE.sceneRoot.add(cloud);
     STATE.clouds.push(cloud);
   });
 }
 
-// ============================================================
-// TOUCH / CLICK → CLOUD CLEARING
-// ============================================================
-function setupInteraction() {
-  const scene = document.getElementById('ar-scene');
-  const camera = scene.querySelector('[camera]');
-
-  // Use touch coordinates to cast ray
-  scene.addEventListener('click', function(evt) {
-    if (STATE.gameWon || !STATE.markerVisible) return;
-    handleInteraction(evt);
+function createCloudMesh() {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.9,
+    metalness: 0,
+    transparent: true,
+    opacity: 0.92,
+    flatShading: true,
   });
 
-  // Also handle touch for mobile
-  let lastTouch = null;
-  document.addEventListener('touchstart', (e) => {
-    if (STATE.gameWon || !STATE.markerVisible) return;
-    lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  const parts = [
+    { p: [0, 0, 0],       s: [1, 0.7, 0.8]  },
+    { p: [0.45, 0.12, 0.1], s: [0.75, 0.6, 0.7] },
+    { p: [-0.45, 0.08,-0.1],s: [0.8, 0.55, 0.7] },
+    { p: [0.18, 0.28, 0.1], s: [0.6, 0.5, 0.55] },
+    { p: [-0.25, 0.22,-0.1],s: [0.55, 0.45, 0.5] },
+    { p: [0.55,-0.05,-0.15],s: [0.5, 0.45, 0.5] },
+    { p: [-0.55,-0.08, 0.15],s:[0.55, 0.4, 0.5] },
+  ];
+
+  parts.forEach(part => {
+    const geom = new THREE.SphereGeometry(0.5, 8, 6);
+    const mesh = new THREE.Mesh(geom, mat.clone());
+    mesh.position.set(...part.p);
+    mesh.scale.set(...part.s);
+    group.add(mesh);
   });
 
-  document.addEventListener('touchmove', (e) => {
-    if (STATE.gameWon || !STATE.markerVisible || !lastTouch) return;
-    const touch = e.touches[0];
-    const dx = touch.clientX - lastTouch.x;
-    const dy = touch.clientY - lastTouch.y;
-    const dist = Math.sqrt(dx*dx + dy*dy);
-    if (dist > 15) {
-      tryHitCloud(touch.clientX, touch.clientY);
-      lastTouch = { x: touch.clientX, y: touch.clientY };
-    }
-  });
-
-  document.addEventListener('touchend', () => { lastTouch = null; });
-}
-
-function handleInteraction(evt) {
-  if (evt.detail && evt.detail.intersection) {
-    // A-Frame click with intersection data
-    const el = evt.detail.intersectedEl;
-    if (el) {
-      const cloud = el.closest('.cloud') || (el.classList.contains('cloud') ? el : null);
-      if (cloud) clearCloud(cloud);
-    }
-  }
-}
-
-function tryHitCloud(screenX, screenY) {
-  // Use A-Frame's raycaster approach via Three.js
-  const scene = document.getElementById('ar-scene');
-  const threeScene = scene.object3D;
-  const camera3D = scene.camera;
-
-  if (!camera3D) return;
-
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-
-  mouse.x = (screenX / window.innerWidth) * 2 - 1;
-  mouse.y = -(screenY / window.innerHeight) * 2 + 1;
-
-  raycaster.setFromCamera(mouse, camera3D);
-
-  // Get all cloud meshes
-  const cloudMeshes = [];
-  STATE.clouds.forEach(cloud => {
-    if (cloud.dataset.cleared === 'true') return;
-    cloud.object3D.traverse(child => {
-      if (child.isMesh) cloudMeshes.push(child);
-    });
-  });
-
-  const intersects = raycaster.intersectObjects(cloudMeshes, true);
-  if (intersects.length > 0) {
-    // Find which cloud entity this mesh belongs to
-    let obj = intersects[0].object;
-    while (obj.parent) {
-      if (obj.el && obj.el.classList && obj.el.classList.contains('cloud')) {
-        clearCloud(obj.el);
-        return;
-      }
-      obj = obj.parent;
-    }
-  }
-}
-
-function clearCloud(cloudEl) {
-  if (!cloudEl || cloudEl.dataset.cleared === 'true') return;
-  cloudEl.dataset.cleared = 'true';
-  STATE.clearedClouds++;
-
-  // Dissolve animation
-  const spheres = cloudEl.querySelectorAll('a-sphere');
-  spheres.forEach((s, i) => {
-    setTimeout(() => {
-      s.setAttribute('animation__fade', 'property: material.opacity; to: 0; dur: 600; easing: easeOutQuad;');
-      s.setAttribute('animation__scale', 'property: scale; to: 1.5 1.5 1.5; dur: 600; easing: easeOutQuad;');
-      s.setAttribute('animation__rise', `property: position; to: ${s.getAttribute('position').x} ${parseFloat(s.getAttribute('position').y || 0) + 0.8} ${s.getAttribute('position').z}; dur: 600; easing: easeOutQuad;`);
-    }, i * 80);
-  });
-
-  // Remove after animation
-  setTimeout(() => {
-    cloudEl.setAttribute('visible', 'false');
-  }, 1200);
-
-  updateUI();
-
-  if (STATE.clearedClouds >= STATE.totalClouds) {
-    revealRainbow();
-  }
-}
-
-// ============================================================
-// REVEAL RAINBOW
-// ============================================================
-function revealRainbow() {
-  if (STATE.rainbowRevealed) return;
-  STATE.rainbowRevealed = true;
-
-  const rainbow = document.getElementById('rainbow-group');
-  rainbow.setAttribute('visible', 'true');
-  rainbow.setAttribute('animation__scale', 'property: scale; from: 0.01 0.01 0.01; to: 0.6 0.6 0.6; dur: 1500; easing: easeOutElastic;');
-  rainbow.setAttribute('animation__rotate', 'property: rotation; from: -15 -30 0; to: -15 0 0; dur: 1500; easing: easeOutQuad;');
-
-  // Trigger sparkles
-  createSparkles();
-
-  // Show win after delay
-  setTimeout(() => {
-    STATE.gameWon = true;
-    showWinScreen();
-  }, 2500);
+  return group;
 }
 
 // ============================================================
 // SPARKLES
 // ============================================================
 function createSparkles() {
-  const container = document.getElementById('sparkles-container');
-  for (let i = 0; i < 30; i++) {
-    const sparkle = document.createElement('a-sphere');
-    const x = (Math.random() - 0.5) * 4;
-    const y = 1 + Math.random() * 3;
-    const z = (Math.random() - 0.5) * 2;
-    sparkle.setAttribute('position', `${x} ${y} ${z}`);
-    sparkle.setAttribute('radius', 0.02 + Math.random() * 0.03);
-    sparkle.setAttribute('material', `color: #ffffaa; emissive: #ffffaa; emissiveIntensity: 1; opacity: 0.8; transparent: true;`);
-    sparkle.setAttribute('animation__float', `property: position; to: ${x + (Math.random()-0.5)*0.5} ${y + 0.5 + Math.random()*0.5} ${z}; dur: ${1500 + Math.random()*1500}; easing: easeInOutSine; loop: true; dir: alternate;`);
-    sparkle.setAttribute('animation__twinkle', `property: material.opacity; from: 0.3; to: 1; dur: ${500 + Math.random()*800}; loop: true; dir: alternate;`);
-    container.appendChild(sparkle);
+  const count = 120;
+  const positions = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3]     = (Math.random() - 0.5) * 4;
+    positions[i * 3 + 1] = Math.random() * 3 - 0.5;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 2.5;
+    sizes[i] = 0.02 + Math.random() * 0.04;
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geom.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+  const mat = new THREE.PointsMaterial({
+    color: 0xffffcc,
+    size: 0.04,
+    transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
+
+  STATE.sparklesGroup = new THREE.Points(geom, mat);
+  STATE.sparklesGroup.visible = false;
+  STATE.sceneRoot.add(STATE.sparklesGroup);
+}
+
+// ============================================================
+// TOUCH INTERACTION (swipe to clear clouds)
+// ============================================================
+let touchActive = false;
+let lastTouchPos = null;
+let trailPoints = [];
+
+$canvas.addEventListener('touchstart', (e) => {
+  if (STATE.phase !== 'PLAYING') return;
+  e.preventDefault();
+  touchActive = true;
+  const t = e.touches[0];
+  lastTouchPos = { x: t.clientX, y: t.clientY };
+  trailPoints = [lastTouchPos];
+  tryHitCloud(t.clientX, t.clientY);
+}, { passive: false });
+
+$canvas.addEventListener('touchmove', (e) => {
+  if (STATE.phase !== 'PLAYING' || !touchActive) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  const dx = t.clientX - lastTouchPos.x;
+  const dy = t.clientY - lastTouchPos.y;
+  if (Math.sqrt(dx*dx + dy*dy) > 10) {
+    tryHitCloud(t.clientX, t.clientY);
+    lastTouchPos = { x: t.clientX, y: t.clientY };
+    trailPoints.push(lastTouchPos);
+    drawTrail();
+  }
+}, { passive: false });
+
+$canvas.addEventListener('touchend', () => {
+  touchActive = false;
+  lastTouchPos = null;
+  fadeTrail();
+});
+
+// Mouse fallback for desktop testing
+$canvas.addEventListener('mousedown', (e) => {
+  if (STATE.phase !== 'PLAYING') return;
+  touchActive = true;
+  lastTouchPos = { x: e.clientX, y: e.clientY };
+  trailPoints = [lastTouchPos];
+  tryHitCloud(e.clientX, e.clientY);
+});
+$canvas.addEventListener('mousemove', (e) => {
+  if (!touchActive) return;
+  tryHitCloud(e.clientX, e.clientY);
+  lastTouchPos = { x: e.clientX, y: e.clientY };
+  trailPoints.push(lastTouchPos);
+  drawTrail();
+});
+$canvas.addEventListener('mouseup', () => { touchActive = false; fadeTrail(); });
+
+function tryHitCloud(screenX, screenY) {
+  const mouse = new THREE.Vector2(
+    (screenX / window.innerWidth) * 2 - 1,
+    -(screenY / window.innerHeight) * 2 + 1
+  );
+
+  STATE.raycaster.setFromCamera(mouse, STATE.camera);
+
+  // Collect all cloud child meshes
+  const meshes = [];
+  STATE.clouds.forEach(cloud => {
+    if (cloud.userData.cleared) return;
+    cloud.traverse(child => {
+      if (child.isMesh) meshes.push(child);
+    });
+  });
+
+  const hits = STATE.raycaster.intersectObjects(meshes, false);
+  if (hits.length > 0) {
+    // Find the parent cloud group
+    let obj = hits[0].object;
+    while (obj.parent && !obj.userData.hasOwnProperty('cleared')) {
+      obj = obj.parent;
+    }
+    if (obj.userData && !obj.userData.cleared) {
+      clearCloud(obj);
+    }
   }
 }
 
 // ============================================================
-// UI UPDATE
+// CLOUD CLEARING
+// ============================================================
+function clearCloud(cloud) {
+  if (cloud.userData.cleared) return;
+  cloud.userData.cleared = true;
+  cloud.userData.dissolveProgress = 0;
+  STATE.clearedClouds++;
+
+  // Haptic
+  if (navigator.vibrate) navigator.vibrate(30);
+
+  updateUI();
+
+  if (STATE.clearedClouds >= CLOUD_COUNT) {
+    setTimeout(revealRainbow, 400);
+  }
+}
+
+function animateCloudDissolve(cloud, dt) {
+  if (!cloud.userData.cleared || cloud.userData.dissolveProgress >= 1) return;
+
+  cloud.userData.dissolveProgress += dt * 1.5; // ~0.7s dissolve
+  const p = Math.min(cloud.userData.dissolveProgress, 1);
+  const ease = 1 - Math.pow(1 - p, 3); // easeOutCubic
+
+  cloud.traverse(child => {
+    if (child.isMesh && child.material) {
+      child.material.opacity = 0.92 * (1 - ease);
+    }
+  });
+  cloud.scale.multiplyScalar(1 + dt * 0.8);
+  cloud.position.y += dt * 0.5;
+
+  if (p >= 1) {
+    cloud.visible = false;
+  }
+}
+
+// ============================================================
+// RAINBOW REVEAL
+// ============================================================
+function revealRainbow() {
+  if (!STATE.rainbowGroup) return;
+  STATE.rainbowGroup.visible = true;
+
+  // Animate scale up
+  const startTime = performance.now();
+  function animateReveal() {
+    const elapsed = (performance.now() - startTime) / 1000;
+    const t = Math.min(elapsed / 1.2, 1);
+
+    // Elastic ease out
+    const c4 = (2 * Math.PI) / 3;
+    const ease = t === 0 ? 0 : t === 1 ? 1 :
+      Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+
+    const s = ease * 1.0;
+    STATE.rainbowGroup.scale.set(s, s, s);
+    STATE.rainbowGroup.rotation.y = (1 - ease) * 0.5;
+
+    if (t < 1) {
+      requestAnimationFrame(animateReveal);
+    } else {
+      // Show sparkles
+      STATE.sparklesGroup.visible = true;
+      STATE.sparklesGroup.material.opacity = 0.6;
+
+      // Win after delay
+      setTimeout(() => {
+        STATE.phase = 'WON';
+        showWinScreen();
+      }, 1500);
+    }
+  }
+  animateReveal();
+}
+
+// ============================================================
+// SWIPE TRAIL
+// ============================================================
+function drawTrail() {
+  if (trailPoints.length < 2) return;
+  const recent = trailPoints.slice(-12);
+  let d = `M ${recent[0].x} ${recent[0].y}`;
+  for (let i = 1; i < recent.length; i++) {
+    d += ` L ${recent[i].x} ${recent[i].y}`;
+  }
+  $trail.innerHTML = `<path d="${d}" stroke="rgba(255,255,255,0.6)" stroke-width="4"
+    stroke-linecap="round" stroke-linejoin="round" fill="none"
+    filter="url(#glow)"/>
+    <defs><filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/>
+    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter></defs>`;
+}
+
+function fadeTrail() {
+  setTimeout(() => { $trail.innerHTML = ''; trailPoints = []; }, 300);
+}
+
+// ============================================================
+// UI UPDATES
 // ============================================================
 function updateUI() {
-  const count = STATE.clearedClouds;
-  const total = STATE.totalClouds;
-  document.getElementById('cloud-count').textContent = `Nuvole: ${count}/${total}`;
-  document.getElementById('progress-fill').style.width = `${(count/total)*100}%`;
+  const c = STATE.clearedClouds;
+  const t = CLOUD_COUNT;
+  $cloudCount.textContent = `Nuvole: ${c}/${t}`;
+  $progressFill.style.width = `${(c / t) * 100}%`;
 
-  if (count >= total) {
-    document.getElementById('swipe-hint').textContent = '🌈 Arcobaleno svelato!';
-  } else if (count > total * 0.6) {
-    document.getElementById('swipe-hint').textContent = 'Quasi fatto! Continua così!';
+  if (c >= t) {
+    $swipeHint.textContent = '🌈 Arcobaleno svelato!';
+  } else if (c > t * 0.6) {
+    $swipeHint.textContent = 'Quasi fatto! Continua!';
   }
 }
 
@@ -512,40 +864,134 @@ function updateUI() {
 // ============================================================
 function showWinScreen() {
   launchConfetti();
-  setTimeout(() => {
-    document.getElementById('win-screen').classList.add('visible');
-  }, 500);
+  setTimeout(() => { $winScreen.classList.add('visible'); }, 500);
 }
 
 function launchConfetti() {
-  const colors = ['#ff0000','#ff8800','#ffff00','#00cc00','#0088ff','#8800ff','#ff00ff','#ffffff'];
+  const colors = ['#ff0000','#ff8800','#ffff00','#00cc00','#0088ff','#8800ff','#ff00ff','#fff'];
   for (let i = 0; i < 80; i++) {
     setTimeout(() => {
-      const piece = document.createElement('div');
-      piece.className = 'confetti-piece';
-      piece.style.left = Math.random() * 100 + 'vw';
-      piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-      piece.style.width = (6 + Math.random() * 8) + 'px';
-      piece.style.height = (6 + Math.random() * 8) + 'px';
-      piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-      piece.style.animationDuration = (2 + Math.random() * 3) + 's';
-      piece.style.animationDelay = '0s';
-      document.body.appendChild(piece);
-      setTimeout(() => piece.remove(), 5000);
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.background = colors[Math.floor(Math.random() * colors.length)];
+      p.style.width = (6 + Math.random() * 8) + 'px';
+      p.style.height = (6 + Math.random() * 8) + 'px';
+      p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      p.style.animationDuration = (2 + Math.random() * 3) + 's';
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 5500);
     }, i * 30);
   }
 }
 
 // ============================================================
-// INIT
+// ANIMATION LOOP
 // ============================================================
-function initGame() {
-  setupMarkerEvents();
-  createRainbow();
-  createClouds();
-  setupInteraction();
-  updateUI();
+let lastTime = performance.now();
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+
+  if (!STATE.renderer) return;
+
+  // Update camera from gyroscope
+  if (STATE.phase === 'PLAYING' || STATE.phase === 'WON') {
+    updateCameraFromGyro();
+  }
+
+  // Animate clouds (floating + dissolve)
+  STATE.clouds.forEach(cloud => {
+    if (!cloud.visible) return;
+
+    if (cloud.userData.cleared) {
+      animateCloudDissolve(cloud, dt);
+    } else {
+      // Gentle floating
+      const ud = cloud.userData;
+      const floatY = Math.sin(now * 0.001 * ud.floatSpeed + ud.floatOffset) * ud.floatAmp;
+      cloud.position.y = ud.baseY + floatY;
+    }
+  });
+
+  // Animate sparkles
+  if (STATE.sparklesGroup && STATE.sparklesGroup.visible) {
+    const positions = STATE.sparklesGroup.geometry.attributes.position.array;
+    for (let i = 0; i < positions.length; i += 3) {
+      positions[i + 1] += Math.sin(now * 0.002 + i) * 0.001;
+    }
+    STATE.sparklesGroup.geometry.attributes.position.needsUpdate = true;
+    STATE.sparklesGroup.rotation.y += dt * 0.1;
+  }
+
+  STATE.renderer.render(STATE.scene, STATE.camera);
 }
+
+// ============================================================
+// DESKTOP FALLBACK: Skip QR scan on non-mobile
+// ============================================================
+// On desktop (no gyroscope), allow mouse orbit for testing
+let isDesktop = false;
+let mouseOrbit = { x: 0, y: 0, targetX: 0, targetY: 0 };
+
+window.addEventListener('deviceorientation', function checkGyro(e) {
+  if (e.alpha !== null) {
+    isDesktop = false;
+    window.removeEventListener('deviceorientation', checkGyro);
+  }
+}, { once: false });
+
+setTimeout(() => {
+  if (!gyroReady) {
+    isDesktop = true;
+    // On desktop, skip QR scan and go straight to playing
+    const origOnQR = onQRDetected;
+    window._desktopStart = function() {
+      if (STATE.phase === 'SCANNING') {
+        STATE.phase = 'CALIBRATING';
+        $scanOv.classList.remove('active');
+        $calibOv.classList.add('active');
+        setTimeout(() => {
+          placeScene();
+          STATE.phase = 'PLAYING';
+          $calibOv.classList.remove('active');
+          $uiOv.classList.add('active');
+          STATE.sceneRoot.visible = true;
+          updateUI();
+        }, 800);
+      }
+    };
+
+    // Mouse orbit for desktop
+    document.addEventListener('mousemove', (e) => {
+      if (STATE.phase !== 'PLAYING' && STATE.phase !== 'WON') return;
+      if (!isDesktop) return;
+      mouseOrbit.targetX = ((e.clientY / window.innerHeight) - 0.5) * 0.5;
+      mouseOrbit.targetY = ((e.clientX / window.innerWidth) - 0.5) * -0.8;
+    });
+
+    // Override camera update for desktop
+    const origUpdateCamera = updateCameraFromGyro;
+    updateCameraFromGyro = function() {
+      if (isDesktop) {
+        mouseOrbit.x += (mouseOrbit.targetX - mouseOrbit.x) * 0.08;
+        mouseOrbit.y += (mouseOrbit.targetY - mouseOrbit.y) * 0.08;
+        STATE.camera.rotation.set(mouseOrbit.x, mouseOrbit.y, 0);
+      } else {
+        origUpdateCamera();
+      }
+    };
+
+    // Auto-trigger after 2 seconds of scanning on desktop
+    setTimeout(() => {
+      if (STATE.phase === 'SCANNING') window._desktopStart();
+    }, 2000);
+  }
+}, 3000);
 </script>
 </body>
 </html>

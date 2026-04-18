@@ -228,6 +228,38 @@
   }
   .intro-btn:active { transform:scale(0.95); }
 
+  /* ---- DESKTOP BLOCK ---- */
+  #desktop-block {
+    position:fixed; inset:0; z-index:999;
+    background: linear-gradient(160deg, #0a0e27 0%, #141b3d 40%, #1a2550 70%, #0f1a3a 100%);
+    display:none; flex-direction:column; align-items:center; justify-content:center;
+    padding:40px 24px; text-align:center;
+  }
+  #desktop-block.visible { display:flex; }
+  .db-logo { font-size:14px; font-weight:800; color:#e94560; text-transform:uppercase; letter-spacing:5px; margin-bottom:4px; }
+  .db-logo-main {
+    font-size:32px; font-weight:900; color:#fff; text-transform:uppercase; letter-spacing:2px; line-height:1.1;
+    background: linear-gradient(180deg, #ffffff 40%, #c0d0e0 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    margin-bottom:24px;
+  }
+  .db-divider {
+    width:50px; height:3px; border-radius:2px; margin:0 auto 28px;
+    background: linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00cc00,#0066ff,#8800ff);
+  }
+  .db-msg {
+    font-size:17px; color:rgba(255,255,255,0.8); max-width:420px;
+    line-height:1.5; margin-bottom:32px;
+  }
+  .db-qr-wrap {
+    background:#fff; border-radius:16px; padding:16px;
+    box-shadow:0 4px 30px rgba(0,0,0,0.3); margin-bottom:20px;
+  }
+  .db-qr-wrap img { display:block; width:200px; height:200px; }
+  .db-qr-label {
+    font-size:13px; color:rgba(255,255,255,0.45); margin-top:4px;
+  }
+
   /* Decorative rainbow arc behind intro */
   .intro-bg-arc {
     position:absolute; top:-120px; left:50%; transform:translateX(-50%);
@@ -241,6 +273,21 @@
 </style>
 </head>
 <body>
+
+<!-- DESKTOP BLOCK -->
+<div id="desktop-block">
+  <div class="db-logo">Sisal</div>
+  <div class="db-logo-main">Super Win<br>for Life</div>
+  <div class="db-divider"></div>
+  <div class="db-msg">
+    Questa esperienza AR è disponibile solo su dispositivi mobili.<br>
+    Inquadra il QR code con il tuo smartphone per giocare!
+  </div>
+  <div class="db-qr-wrap">
+    <img src="marker-qr.png" alt="QR Code">
+  </div>
+  <div class="db-qr-label">swfl-ar-experience.onrender.com</div>
+</div>
 
 <!-- INTRO SPLASH (before everything) -->
 <div id="intro">
@@ -1308,13 +1355,31 @@ function bootXR() {
   else window.addEventListener('xrloaded', onxrloaded);
 }
 
-// Intro button → init audio (needs user gesture) → start XR → hide intro
-document.getElementById('intro-btn').addEventListener('click', () => {
-  initAudio();
-  playBG();
-  bootXR();
-  document.getElementById('intro').classList.add('hidden');
-});
+// ================================================================
+//  DEVICE CHECK — block desktop, allow only mobile/tablet
+// ================================================================
+function isMobileDevice() {
+  // Check touch support + screen size + user agent
+  const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  const smallScreen = Math.min(window.innerWidth, window.innerHeight) < 900;
+  const mobileUA = /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  // iPad with desktop UA still has touch
+  return (hasTouch && smallScreen) || mobileUA;
+}
+
+if (!isMobileDevice()) {
+  // Desktop → show block screen, hide everything else
+  document.getElementById('desktop-block').classList.add('visible');
+  document.getElementById('intro').style.display = 'none';
+} else {
+  // Mobile → normal flow
+  document.getElementById('intro-btn').addEventListener('click', () => {
+    initAudio();
+    playBG();
+    bootXR();
+    document.getElementById('intro').classList.add('hidden');
+  });
+}
 </script>
 </body>
 </html>

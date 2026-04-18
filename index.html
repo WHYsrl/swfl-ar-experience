@@ -164,6 +164,37 @@
     100%{transform:translateY(110vh) rotate(720deg);opacity:0;}
   }
 
+  /* Victory flash */
+  #victory-flash {
+    position:fixed; inset:0; z-index:180;
+    background:rgba(255,255,255,0.9); pointer-events:none;
+    opacity:0; transition: opacity 0.15s ease;
+  }
+  #victory-flash.active { opacity:1; }
+
+  /* Victory banner */
+  #victory-banner {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0.3);
+    z-index:190; pointer-events:none;
+    text-align:center; opacity:0;
+    transition: opacity 0.4s ease, transform 0.6s cubic-bezier(0.175,0.885,0.32,1.275);
+  }
+  #victory-banner.active {
+    opacity:1; transform:translate(-50%,-50%) scale(1);
+  }
+  .vb-emoji { font-size:80px; display:block; margin-bottom:8px; }
+  .vb-text {
+    font-size:36px; font-weight:900; text-transform:uppercase;
+    background: linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00cc00,#0066ff,#8800ff);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+  }
+  .vb-sub {
+    font-size:18px; color:#fff; font-weight:700; margin-top:8px;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  }
+
   /* ---- INTRO SPLASH ---- */
   #intro {
     position:fixed; inset:0; z-index:500;
@@ -345,6 +376,14 @@
   <button class="retry-btn" onclick="location.reload()">Ritenta</button>
 </div>
 
+<!-- VICTORY EFFECTS -->
+<div id="victory-flash"></div>
+<div id="victory-banner">
+  <span class="vb-emoji">🌈</span>
+  <div class="vb-text">Hai cambiato il clima!</div>
+  <div class="vb-sub">Super Win for Life</div>
+</div>
+
 <!-- WIN -->
 <div id="win-screen">
   <div class="win-emoji">🌈</div>
@@ -414,38 +453,18 @@ function playCollect() {
 }
 
 function playFinal() {
-  if (!SFX.final) return;
-
-  // Step 1: Stop BG immediately
+  // HARD STOP background — no fade, instant silence
   if (SFX.bg) {
-    // Quick fade out (0.3s) then pause, THEN start final
-    const fadeOut = setInterval(() => {
-      if (SFX.bg.volume > 0.02) {
-        SFX.bg.volume = Math.max(0, SFX.bg.volume - 0.1);
-      } else {
-        SFX.bg.volume = 0;
-        SFX.bg.pause();
-        clearInterval(fadeOut);
-        // Step 2: Start final only AFTER bg is fully stopped
-        startFinalMusic();
-      }
-    }, 30);
-  } else {
-    startFinalMusic();
+    SFX.bg.pause();
+    SFX.bg.currentTime = 0;
+    SFX.bg.volume = 0;
   }
-}
-
-function startFinalMusic() {
-  SFX.final.volume = 0;
-  SFX.final.play().catch(() => {});
-  // Fade in over ~0.6s
-  const fadeIn = setInterval(() => {
-    if (SFX.final.volume < 0.78) {
-      SFX.final.volume = Math.min(0.8, SFX.final.volume + 0.05);
-    } else {
-      clearInterval(fadeIn);
-    }
-  }, 40);
+  // Play final immediately at full volume
+  if (SFX.final) {
+    SFX.final.volume = 0.85;
+    SFX.final.currentTime = 0;
+    SFX.final.play().catch(() => {});
+  }
 }
 
 // ================================================================
@@ -1246,31 +1265,69 @@ function updateCounter() {
 function onAllCollected() {
   gameOver = true;
   clearInterval(timerInterval);
-  document.getElementById('ar-info').textContent = '🎉 Li hai trovati tutti!';
+
+  // === INSTANT: stop BG, play final ===
   playFinal();
 
-  // Phase 1: AR confetti celebration (3D particles in scene) — 6 seconds
-  spawnARConfetti();
+  // === 0ms: White flash + heavy haptic ===
+  if (navigator.vibrate) navigator.vibrate([200, 80, 200, 80, 300]);
+  const flash = document.getElementById('victory-flash');
+  flash.classList.add('active');
+  setTimeout(() => flash.classList.remove('active'), 400);
 
-  // Phase 2: screen confetti overlay on top — starts at 4s
-  setTimeout(launchScreenConfetti, 4000);
+  // === 0.3s: Hide timer/counter, show victory banner ===
+  setTimeout(() => {
+    document.getElementById('ar-top-bar').classList.remove('active');
+    document.getElementById('ar-info').style.opacity = '0';
+    document.getElementById('victory-banner').classList.add('active');
+  }, 300);
 
-  // Phase 3: win screen after full celebration — 8 seconds total
-  setTimeout(showWin, 8000);
+  // === 0.5s: AR confetti burst (wave 1 — big pieces close) ===
+  setTimeout(() => spawnARConfetti(60, 0.5, 2.5, 0.06), 500);
+
+  // === 1.5s: Screen confetti (wave 1) ===
+  setTimeout(() => launchScreenConfetti(80), 1500);
+
+  // === 3s: AR confetti (wave 2 — smaller, wider) ===
+  setTimeout(() => spawnARConfetti(80, 1, 4, 0.04), 3000);
+
+  // === 5s: Screen confetti (wave 2) ===
+  setTimeout(() => launchScreenConfetti(100), 5000);
+
+  // === 6s: Hide victory banner ===
+  setTimeout(() => {
+    document.getElementById('victory-banner').classList.remove('active');
+  }, 6000);
+
+  // === 7s: AR confetti (wave 3 — final burst) ===
+  setTimeout(() => spawnARConfetti(120, 0.3, 3, 0.05), 7000);
+
+  // === 8s: Last screen confetti ===
+  setTimeout(() => launchScreenConfetti(60), 8000);
+
+  // === 10s: Show win screen ===
+  setTimeout(showWin, 10000);
 }
 
 // ================================================================
 //  AR CONFETTI (3D particles in the Three.js scene)
 // ================================================================
-function spawnARConfetti() {
+function spawnARConfetti(count, minDist, maxDist, pieceSize) {
   if (!arScene) return;
   const colors = [0xff0000,0xff8800,0xffff00,0x00cc00,0x0088ff,0x8800ff,0xff00ff,0xffd700];
 
-  // 100 confetti pieces falling from above, around the user
-  for (let i = 0; i < 100; i++) {
-    const geo = Math.random() > 0.5
-      ? new THREE.BoxGeometry(0.04, 0.04, 0.005)
-      : new THREE.CircleGeometry(0.025, 6);
+  for (let i = 0; i < count; i++) {
+    const type = Math.random();
+    let geo;
+    if (type < 0.33) {
+      geo = new THREE.BoxGeometry(pieceSize, pieceSize, pieceSize * 0.1);
+    } else if (type < 0.66) {
+      geo = new THREE.CircleGeometry(pieceSize * 0.6, 6);
+    } else {
+      // Star-shaped confetti
+      geo = new THREE.RingGeometry(pieceSize * 0.2, pieceSize * 0.5, 5);
+    }
+
     const mat = new THREE.MeshBasicMaterial({
       color: colors[Math.floor(Math.random()*colors.length)],
       side: THREE.DoubleSide,
@@ -1278,52 +1335,51 @@ function spawnARConfetti() {
     const piece = new THREE.Mesh(geo, mat);
 
     const angle = Math.random() * Math.PI * 2;
-    const dist = 0.5 + Math.random() * 3;
+    const dist = minDist + Math.random() * (maxDist - minDist);
     piece.position.set(
       Math.sin(angle) * dist,
-      3 + Math.random() * 3,  // start high
+      3 + Math.random() * 4,
       -Math.cos(angle) * dist
     );
     piece.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
 
     piece.userData = {
       type: 'ar-confetti',
-      velY: -(0.5 + Math.random() * 1.0),     // fall speed
-      rotSpeed: (Math.random()-0.5) * 5,        // tumble
+      velY: -(0.3 + Math.random() * 0.8),
+      rotSpeed: (Math.random()-0.5) * 6,
       swayPhase: Math.random() * Math.PI * 2,
-      swayAmp: 0.2 + Math.random() * 0.3,
+      swayAmp: 0.15 + Math.random() * 0.35,
     };
 
     arScene.add(piece);
     themeElements.push(piece);
 
-    // Remove after 7 seconds
     setTimeout(() => {
       piece.visible = false;
       arScene.remove(piece);
-    }, 7000);
+    }, 8000);
   }
-
 }
 
 // ================================================================
 //  SCREEN CONFETTI (2D CSS overlay)
 // ================================================================
-function launchScreenConfetti() {
-  const cols=['#ff0000','#ff8800','#ffff00','#00cc00','#0088ff','#8800ff','#ff00ff','#ffd700'];
-  for(let i=0;i<120;i++){
+function launchScreenConfetti(count) {
+  const cols=['#ff0000','#ff8800','#ffff00','#00cc00','#0088ff','#8800ff','#ff00ff','#ffd700','#ffffff'];
+  for(let i=0;i<count;i++){
     setTimeout(()=>{
       const p=document.createElement('div');
       p.className='confetti';
       p.style.left=Math.random()*100+'vw';
       p.style.background=cols[Math.floor(Math.random()*cols.length)];
-      p.style.width=(6+Math.random()*10)+'px';
-      p.style.height=(6+Math.random()*10)+'px';
+      const size = 6+Math.random()*12;
+      p.style.width=size+'px';
+      p.style.height=size+'px';
       p.style.borderRadius=Math.random()>.5?'50%':'2px';
-      p.style.animationDuration=(2+Math.random()*3)+'s';
+      p.style.animationDuration=(2.5+Math.random()*3.5)+'s';
       document.body.appendChild(p);
-      setTimeout(()=>p.remove(),5500);
-    },i*25);
+      setTimeout(()=>p.remove(),6000);
+    },i*20);
   }
 }
 

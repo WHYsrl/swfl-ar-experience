@@ -5,156 +5,107 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Cambia il Clima della Tua Vita | Super Win for Life</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:100%; height:100%; overflow:hidden; background:#000;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-
-  #camera-video {
-    position:fixed; top:0; left:0; width:100%; height:100%;
-    object-fit:cover; z-index:0;
-  }
-  #three-canvas {
-    position:fixed; top:0; left:0; width:100%; height:100%;
-    z-index:1; touch-action:none;
-  }
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    touch-action:none; -webkit-user-select:none; user-select:none; }
 
   /* ---- SPLASH ---- */
-  #splash-screen {
-    position:fixed; top:0; left:0; width:100%; height:100%; z-index:100;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  #splash {
+    position:fixed; inset:0; z-index:100;
+    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
     display:flex; flex-direction:column; align-items:center; justify-content:center;
-    transition: opacity 0.8s ease, transform 0.8s ease;
+    transition: opacity 0.6s ease;
   }
-  #splash-screen.hidden { opacity:0; transform:scale(1.1); pointer-events:none; }
-  .splash-title {
+  #splash.hidden { opacity:0; pointer-events:none; }
+  .sp-title {
     font-size:28px; color:#fff; font-weight:800; text-align:center;
     line-height:1.3; margin-bottom:12px; text-transform:uppercase; letter-spacing:2px;
   }
-  .splash-subtitle {
-    font-size:16px; color:rgba(255,255,255,0.7); text-align:center;
+  .sp-sub {
+    font-size:15px; color:rgba(255,255,255,0.65); text-align:center;
     margin-bottom:40px; max-width:300px; line-height:1.5;
   }
-  .splash-btn {
+  .sp-btn {
     background: linear-gradient(135deg, #e94560, #c23152);
     color:#fff; border:none; border-radius:30px;
     padding:16px 48px; font-size:18px; font-weight:700;
-    cursor:pointer; letter-spacing:1px; text-transform:uppercase;
-    box-shadow: 0 4px 20px rgba(233,69,96,0.4);
-    transition: transform 0.2s;
+    cursor:pointer; text-transform:uppercase; letter-spacing:1px;
+    box-shadow:0 4px 20px rgba(233,69,96,0.4);
   }
-  .splash-btn:active { transform:scale(0.95); }
+  .sp-btn:active { transform:scale(0.95); }
+  #splash .error-msg {
+    margin-top:20px; color:#e94560; font-size:14px; text-align:center;
+    max-width:300px; line-height:1.4; display:none;
+  }
 
-  /* ---- SCAN OVERLAY ---- */
-  #scan-overlay {
-    position:fixed; top:0; left:0; width:100%; height:100%; z-index:50;
-    display:none; flex-direction:column; align-items:center; justify-content:center;
+  /* ---- SCRATCH PHASE ---- */
+  #scratch-layer {
+    position:fixed; inset:0; z-index:50; display:none;
+  }
+  #scratch-canvas {
+    width:100%; height:100%; display:block;
+  }
+  #scratch-ui {
+    position:fixed; top:0; left:0; width:100%; z-index:55;
+    padding:16px 20px; display:flex; align-items:center; gap:12px;
     pointer-events:none;
   }
-  #scan-overlay.active { display:flex; }
-  .scan-frame {
-    width:220px; height:220px; border:3px solid rgba(255,255,255,0.8);
-    border-radius:20px; position:relative;
-    animation: scan-pulse 2s ease-in-out infinite;
-  }
-  .scan-frame::before, .scan-frame::after {
-    content:''; position:absolute; width:40px; height:40px;
-    border-color:#e94560; border-style:solid;
-  }
-  .scan-frame::before { top:-2px; left:-2px; border-width:4px 0 0 4px; border-radius:20px 0 0 0; }
-  .scan-frame::after { bottom:-2px; right:-2px; border-width:0 4px 4px 0; border-radius:0 0 20px 0; }
-  .scan-line {
-    position:absolute; left:10%; width:80%; height:2px;
-    background: linear-gradient(90deg, transparent, #e94560, transparent);
-    animation: scan-move 2s ease-in-out infinite;
-  }
-  @keyframes scan-move { 0%,100%{top:10%;} 50%{top:85%;} }
-  @keyframes scan-pulse { 0%,100%{opacity:0.8;} 50%{opacity:1;} }
-  .scan-text {
-    color:#fff; font-size:18px; font-weight:600; margin-top:24px;
-    text-shadow:0 2px 10px rgba(0,0,0,0.7); text-align:center;
-    padding:0 30px; line-height:1.4;
-  }
-  .scan-text-small {
-    color:rgba(255,255,255,0.5); font-size:13px; margin-top:8px;
-    text-shadow:0 1px 4px rgba(0,0,0,0.5);
-  }
-
-  /* ---- CALIBRATING ---- */
-  #calibrating-overlay {
-    position:fixed; top:0; left:0; width:100%; height:100%; z-index:55;
-    display:none; align-items:center; justify-content:center;
-    pointer-events:none;
-  }
-  #calibrating-overlay.active { display:flex; }
-  .calibrating-box {
-    background:rgba(0,0,0,0.7); border-radius:20px; padding:24px 36px;
-    text-align:center;
-  }
-  .calibrating-spinner {
-    width:40px; height:40px; border:3px solid rgba(255,255,255,0.2);
-    border-top-color:#e94560; border-radius:50%; margin:0 auto 12px;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform:rotate(360deg); } }
-  .calibrating-text { color:#fff; font-size:16px; font-weight:600; }
-
-  /* ---- GAME UI ---- */
-  #ui-overlay {
-    position:fixed; top:0; left:0; width:100%; height:100%;
-    z-index:10; pointer-events:none;
-    display:none; flex-direction:column; align-items:center; justify-content:space-between;
-  }
-  #ui-overlay.active { display:flex; }
-  #ui-overlay > * { pointer-events:auto; }
-  .top-bar {
-    width:100%; padding:16px 20px;
-    display:flex; justify-content:space-between; align-items:center;
-  }
-  .score-display {
+  .scratch-label {
     background:rgba(255,255,255,0.9); border-radius:20px;
-    padding:8px 18px; font-weight:700; font-size:16px;
-    color:#1a1a2e; box-shadow:0 2px 12px rgba(0,0,0,0.15);
+    padding:8px 16px; font-weight:700; font-size:14px; color:#1a1a2e;
+    box-shadow:0 2px 12px rgba(0,0,0,0.15); white-space:nowrap;
   }
-  .progress-bar-container {
-    flex:1; margin:0 16px; height:8px;
-    background:rgba(255,255,255,0.3); border-radius:4px; overflow:hidden;
+  .scratch-bar-bg {
+    flex:1; height:8px; background:rgba(255,255,255,0.3);
+    border-radius:4px; overflow:hidden;
   }
-  .progress-bar-fill {
-    height:100%; border-radius:4px; transition:width 0.5s ease; width:0%;
-    background: linear-gradient(90deg, #ff0000,#ff8800,#ffff00,#00cc00,#0066ff,#8800ff);
+  .scratch-bar-fill {
+    height:100%; width:0%; border-radius:4px;
+    background: linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00cc00,#0066ff,#8800ff);
+    transition: width 0.3s ease;
   }
-  .swipe-hint {
-    color:#fff; font-size:18px; font-weight:600;
-    text-shadow:0 2px 8px rgba(0,0,0,0.5);
+  #scratch-hint {
+    position:fixed; bottom:60px; left:50%; transform:translateX(-50%);
+    z-index:55; color:#fff; font-size:18px; font-weight:600;
+    text-shadow:0 2px 10px rgba(0,0,0,0.7);
     animation: pulse 2s ease-in-out infinite;
-    text-align:center; padding:0 20px 40px;
+    pointer-events:none;
   }
-  @keyframes pulse { 0%,100%{opacity:0.7;transform:scale(1);} 50%{opacity:1;transform:scale(1.05);} }
+  @keyframes pulse { 0%,100%{opacity:.7;transform:translateX(-50%) scale(1);}
+    50%{opacity:1;transform:translateX(-50%) scale(1.05);} }
 
-  /* Swipe trail SVG */
-  #swipe-trail {
-    position:fixed; top:0; left:0; width:100%; height:100%;
-    z-index:5; pointer-events:none;
+  /* ---- DOM OVERLAY (WebXR) ---- */
+  #ar-overlay {
+    position:fixed; inset:0; z-index:10;
+    display:none; pointer-events:none;
+  }
+  #ar-overlay.active { display:block; }
+  #ar-info {
+    position:fixed; bottom:40px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.6); color:#fff; padding:12px 24px;
+    border-radius:20px; font-size:15px; font-weight:600;
+    text-align:center; pointer-events:none;
+    transition: opacity 0.5s;
   }
 
   /* ---- WIN SCREEN ---- */
   #win-screen {
-    position:fixed; top:0; left:0; width:100%; height:100%; z-index:200;
-    background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 50%, #16213e 100%);
+    position:fixed; inset:0; z-index:200;
+    background: linear-gradient(135deg, #0f3460, #1a1a2e, #16213e);
     display:none; flex-direction:column; align-items:center; justify-content:center;
   }
   #win-screen.visible { display:flex; }
   .win-emoji { font-size:64px; margin-bottom:16px; }
   .win-title {
-    font-size:32px; color:#fff; font-weight:800; text-align:center;
+    font-size:30px; color:#fff; font-weight:800; text-align:center;
     margin-bottom:8px; text-transform:uppercase;
     background: linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00cc00,#0066ff,#8800ff);
     -webkit-background-clip:text; -webkit-text-fill-color:transparent;
   }
   .win-brand { font-size:22px; color:#e94560; font-weight:700; margin-bottom:20px; }
-  .win-message {
+  .win-msg {
     font-size:16px; color:rgba(255,255,255,0.8); text-align:center;
     max-width:300px; line-height:1.5; margin-bottom:32px;
   }
@@ -162,709 +113,494 @@
     background: linear-gradient(135deg, #00c853, #009624);
     color:#fff; border:none; border-radius:30px;
     padding:16px 40px; font-size:18px; font-weight:700;
-    cursor:pointer; letter-spacing:1px; text-transform:uppercase;
+    cursor:pointer; text-transform:uppercase;
     box-shadow:0 4px 20px rgba(0,200,83,0.4);
   }
 
   /* Confetti */
-  .confetti-piece {
-    position:fixed; width:10px; height:10px;
-    z-index:210; pointer-events:none;
-    animation: confetti-fall linear forwards;
+  .confetti {
+    position:fixed; z-index:210; pointer-events:none;
+    animation: cfall linear forwards;
   }
-  @keyframes confetti-fall {
-    0% { transform:translateY(-20px) rotate(0deg); opacity:1; }
-    100% { transform:translateY(110vh) rotate(720deg); opacity:0; }
+  @keyframes cfall {
+    0%{transform:translateY(-20px) rotate(0deg);opacity:1;}
+    100%{transform:translateY(110vh) rotate(720deg);opacity:0;}
   }
 </style>
 </head>
 <body>
 
-<!-- Camera Background -->
-<video id="camera-video" autoplay playsinline muted></video>
-<canvas id="three-canvas"></canvas>
+<!-- ===== SPLASH ===== -->
+<div id="splash">
+  <div class="sp-title">Cambia il Clima<br>della Tua Vita</div>
+  <div class="sp-sub">Gratta via le nuvole e scopri gli arcobaleni nascosti intorno a te!</div>
+  <button class="sp-btn" id="start-btn">Inizia</button>
+  <div class="error-msg" id="error-msg"></div>
+</div>
 
-<!-- Swipe Trail -->
-<svg id="swipe-trail"></svg>
-
-<!-- Splash -->
-<div id="splash-screen">
-  <div class="splash-title">Cambia il Clima<br>della Tua Vita</div>
-  <div class="splash-subtitle">
-    Inquadra il QR code all'ingresso per scoprire il tuo arcobaleno!
+<!-- ===== SCRATCH LAYER ===== -->
+<div id="scratch-layer">
+  <canvas id="scratch-canvas"></canvas>
+  <div id="scratch-ui">
+    <div class="scratch-label" id="scratch-pct">0%</div>
+    <div class="scratch-bar-bg"><div class="scratch-bar-fill" id="scratch-fill"></div></div>
   </div>
-  <button class="splash-btn" id="start-btn">Inizia</button>
+  <div id="scratch-hint">Gratta con il dito!</div>
 </div>
 
-<!-- Scan Overlay -->
-<div id="scan-overlay">
-  <div class="scan-frame"><div class="scan-line"></div></div>
-  <div class="scan-text">Inquadra il QR code</div>
-  <div class="scan-text-small">Punta la fotocamera verso il codice all'ingresso</div>
+<!-- ===== AR DOM OVERLAY ===== -->
+<div id="ar-overlay">
+  <div id="ar-info">Guardati intorno per trovare gli arcobaleni!</div>
 </div>
 
-<!-- Calibrating -->
-<div id="calibrating-overlay">
-  <div class="calibrating-box">
-    <div class="calibrating-spinner"></div>
-    <div class="calibrating-text">Posizionamento in corso...</div>
-  </div>
-</div>
-
-<!-- Game UI -->
-<div id="ui-overlay">
-  <div class="top-bar">
-    <div class="score-display" id="cloud-count">Nuvole: 0/12</div>
-    <div class="progress-bar-container">
-      <div class="progress-bar-fill" id="progress-fill"></div>
-    </div>
-  </div>
-  <div class="swipe-hint" id="swipe-hint">Spazza via le nuvole!</div>
-</div>
-
-<!-- Win Screen -->
+<!-- ===== WIN ===== -->
 <div id="win-screen">
   <div class="win-emoji">🌈</div>
   <div class="win-title">Hai cambiato il clima!</div>
   <div class="win-brand">Super Win for Life</div>
-  <div class="win-message">Entra in ricevitoria e ritira il tuo gadget esclusivo!</div>
+  <div class="win-msg">Entra in ricevitoria e ritira il tuo gadget esclusivo!</div>
   <button class="win-cta" onclick="location.reload()">Gioca ancora</button>
 </div>
 
 <script>
-// ============================================================
-// CONSTANTS
-// ============================================================
-const SCENE_DISTANCE    = 3.5;   // meters in front of camera at anchor time
-const SCENE_HEIGHT      = 0.5;   // slightly above eye level
-const CLOUD_COUNT       = 12;
-const GYRO_SMOOTHING    = 0.92;  // higher = smoother but laggier (0-1)
-const QR_SCAN_INTERVAL  = 200;   // ms between QR scans (saves CPU)
+// ================================================================
+//  PHASE 1 — SCRATCH CARD (pure 2D UI)
+// ================================================================
 
-// ============================================================
-// STATE
-// ============================================================
-const STATE = {
-  phase: 'SPLASH', // SPLASH → SCANNING → CALIBRATING → PLAYING → WON
-  clearedClouds: 0,
-  clouds: [],          // { mesh, cleared }
-  rainbowGroup: null,
-  sparklesGroup: null,
-  sceneRoot: null,
+const SCRATCH_THRESHOLD = 0.55; // 55% cleared → done
+let scratchDone = false;
 
-  // Gyro
-  gyroRef: null,       // initial orientation quaternion
-  currentQuat: new THREE.Quaternion(),
-  targetQuat:  new THREE.Quaternion(),
+function initScratch() {
+  const layer = document.getElementById('scratch-layer');
+  const canvas = document.getElementById('scratch-canvas');
+  const ctx = canvas.getContext('2d');
+  layer.style.display = 'block';
 
-  // QR
-  qrScanTimer: null,
-  qrDetectedData: null,
+  // Size canvas to screen
+  const W = window.innerWidth;
+  const H = window.innerHeight;
+  canvas.width = W * window.devicePixelRatio;
+  canvas.height = H * window.devicePixelRatio;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-  // Three
-  scene: null,
-  camera: null,
-  renderer: null,
-  raycaster: new THREE.Raycaster(),
-};
+  // Draw cloudy sky
+  drawClouds(ctx, W, H);
 
-// ============================================================
-// DOM REFS
-// ============================================================
-const $splash     = document.getElementById('splash-screen');
-const $scanOv     = document.getElementById('scan-overlay');
-const $calibOv    = document.getElementById('calibrating-overlay');
-const $uiOv       = document.getElementById('ui-overlay');
-const $winScreen  = document.getElementById('win-screen');
-const $cloudCount = document.getElementById('cloud-count');
-const $progressFill = document.getElementById('progress-fill');
-const $swipeHint  = document.getElementById('swipe-hint');
-const $video      = document.getElementById('camera-video');
-const $canvas     = document.getElementById('three-canvas');
-const $trail      = document.getElementById('swipe-trail');
+  // Scratch interaction
+  const brushSize = Math.max(W, H) * 0.07;
+  let isDown = false;
+  let checkCounter = 0;
 
-// ============================================================
-// START BUTTON
-// ============================================================
-document.getElementById('start-btn').addEventListener('click', async () => {
-  // Request gyroscope permission (iOS 13+)
-  if (typeof DeviceOrientationEvent !== 'undefined' &&
-      typeof DeviceOrientationEvent.requestPermission === 'function') {
-    try {
-      const perm = await DeviceOrientationEvent.requestPermission();
-      if (perm !== 'granted') {
-        alert('Permesso giroscopio necessario per l\'esperienza AR.');
-        return;
-      }
-    } catch (e) {
-      console.warn('Gyro permission error:', e);
+  function scratch(x, y) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(x, y, brushSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    checkCounter++;
+    if (checkCounter % 8 === 0) checkProgress(ctx, W, H);
+  }
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault(); isDown = true;
+    const t = e.touches[0];
+    scratch(t.clientX, t.clientY);
+  }, {passive:false});
+
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!isDown) return;
+    const t = e.touches[0];
+    scratch(t.clientX, t.clientY);
+  }, {passive:false});
+
+  canvas.addEventListener('touchend', () => { isDown = false; });
+
+  // Mouse fallback
+  canvas.addEventListener('mousedown', (e) => { isDown = true; scratch(e.clientX, e.clientY); });
+  canvas.addEventListener('mousemove', (e) => { if (isDown) scratch(e.clientX, e.clientY); });
+  canvas.addEventListener('mouseup', () => { isDown = false; });
+}
+
+function drawClouds(ctx, W, H) {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#8eafc2');
+  grad.addColorStop(0.5, '#a8c4d4');
+  grad.addColorStop(1, '#c5d8e2');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Lots of overlapping cloud puffs to cover the whole screen
+  ctx.fillStyle = '#ffffff';
+  const puffs = [];
+  const gridX = Math.ceil(W / 60);
+  const gridY = Math.ceil(H / 50);
+
+  for (let gy = -1; gy <= gridY + 1; gy++) {
+    for (let gx = -1; gx <= gridX + 1; gx++) {
+      const cx = gx * 60 + (gy % 2) * 30 + (Math.random() - 0.5) * 40;
+      const cy = gy * 50 + (Math.random() - 0.5) * 30;
+      const r = 40 + Math.random() * 35;
+      puffs.push({ x: cx, y: cy, r });
     }
   }
 
-  // Start camera
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    $video.srcObject = stream;
-    await $video.play();
-  } catch (e) {
-    alert('Fotocamera non disponibile.');
-    return;
+  // Draw puffs with slight transparency variation
+  puffs.forEach(p => {
+    ctx.globalAlpha = 0.7 + Math.random() * 0.3;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // Extra dense layer
+  for (let i = 0; i < 120; i++) {
+    ctx.globalAlpha = 0.5 + Math.random() * 0.5;
+    const x = Math.random() * W;
+    const y = Math.random() * H;
+    const r = 30 + Math.random() * 50;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  // Init Three.js
-  initThree();
+  ctx.globalAlpha = 1;
 
-  // Transition to scanning
-  $splash.classList.add('hidden');
-  setTimeout(() => {
-    STATE.phase = 'SCANNING';
-    $scanOv.classList.add('active');
-    startQRScanning();
-    startGyroListening();
-  }, 800);
-});
+  // Add text overlay
+  ctx.fillStyle = 'rgba(100, 130, 160, 0.25)';
+  ctx.font = `bold ${Math.min(W * 0.06, 28)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.fillText('☁️ GRATTA VIA LE NUVOLE ☁️', W / 2, H / 2);
+}
 
-// ============================================================
-// THREE.JS SETUP
-// ============================================================
-function initThree() {
-  STATE.scene = new THREE.Scene();
+function checkProgress(ctx, W, H) {
+  if (scratchDone) return;
 
-  STATE.camera = new THREE.PerspectiveCamera(
-    70, window.innerWidth / window.innerHeight, 0.01, 100
+  // Sample pixels to estimate cleared percentage
+  const sampleSize = 80;
+  let transparent = 0;
+  const total = sampleSize * sampleSize;
+
+  const imgData = ctx.getImageData(0, 0,
+    W * window.devicePixelRatio,
+    H * window.devicePixelRatio
   );
-  STATE.camera.position.set(0, 0, 0);
+  const data = imgData.data;
+  const iW = imgData.width;
+  const iH = imgData.height;
 
-  STATE.renderer = new THREE.WebGLRenderer({
-    canvas: $canvas, alpha: true, antialias: true
-  });
-  STATE.renderer.setSize(window.innerWidth, window.innerHeight);
-  STATE.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  STATE.renderer.setClearColor(0x000000, 0);
+  for (let sy = 0; sy < sampleSize; sy++) {
+    for (let sx = 0; sx < sampleSize; sx++) {
+      const px = Math.floor((sx / sampleSize) * iW);
+      const py = Math.floor((sy / sampleSize) * iH);
+      const idx = (py * iW + px) * 4;
+      if (data[idx + 3] < 128) transparent++;
+    }
+  }
+
+  const pct = transparent / total;
+  const pctInt = Math.min(Math.round(pct * 100), 100);
+
+  document.getElementById('scratch-pct').textContent = pctInt + '%';
+  document.getElementById('scratch-fill').style.width = pctInt + '%';
+
+  if (pct >= SCRATCH_THRESHOLD && !scratchDone) {
+    scratchDone = true;
+    onScratchComplete();
+  }
+}
+
+function onScratchComplete() {
+  document.getElementById('scratch-hint').textContent = '🌈 Nuvole spazzate!';
+
+  // Fade out scratch layer
+  const layer = document.getElementById('scratch-layer');
+  layer.style.transition = 'opacity 1s ease';
+  layer.style.opacity = '0';
+
+  setTimeout(() => {
+    layer.style.display = 'none';
+    startARPhase();
+  }, 1000);
+}
+
+// ================================================================
+//  PHASE 2 — WebXR immersive-ar
+// ================================================================
+
+let xrSession = null;
+let xrRefSpace = null;
+let renderer = null;
+let scene = null;
+let camera = null;
+let rainbowsPlaced = false;
+let gl = null;
+
+async function startARPhase() {
+  const overlay = document.getElementById('ar-overlay');
+  overlay.classList.add('active');
+
+  try {
+    const supported = await navigator.xr.isSessionSupported('immersive-ar');
+    if (!supported) {
+      showError('WebXR immersive-ar non supportato su questo device/browser.');
+      return;
+    }
+
+    // Request AR session
+    xrSession = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['local-floor'],
+      optionalFeatures: ['dom-overlay'],
+      domOverlay: { root: overlay }
+    });
+
+    // Setup Three.js
+    initThreeXR();
+
+    // Reference space — local-floor for world-anchored tracking
+    xrRefSpace = await xrSession.requestReferenceSpace('local-floor');
+
+    // Bind renderer to XR session
+    await gl.makeXRCompatible();
+    const baseLayer = new XRWebGLLayer(xrSession, gl);
+    xrSession.updateRenderState({ baseLayer });
+
+    // Start render loop
+    xrSession.requestAnimationFrame(onXRFrame);
+
+    xrSession.addEventListener('end', () => {
+      xrSession = null;
+    });
+
+  } catch (e) {
+    console.error('AR session error:', e);
+    showError('Errore avvio AR: ' + e.message);
+  }
+}
+
+function initThreeXR() {
+  // Create renderer
+  const canvas = document.createElement('canvas');
+  document.body.appendChild(canvas);
+  canvas.style.cssText = 'position:fixed;inset:0;z-index:1;width:100%;height:100%;';
+
+  renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x000000, 0);
+  renderer.xr.enabled = true;
+  renderer.xr.setSession(xrSession);
+
+  gl = renderer.getContext();
+
+  // Scene
+  scene = new THREE.Scene();
+
+  // Camera (WebXR manages this)
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
 
   // Lighting
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
-  STATE.scene.add(ambient);
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(2, 4, 1);
-  STATE.scene.add(dirLight);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+  dir.position.set(1, 3, 2);
+  scene.add(dir);
 
-  // Scene root (will be positioned on QR detection)
-  STATE.sceneRoot = new THREE.Group();
-  STATE.sceneRoot.visible = false;
-  STATE.scene.add(STATE.sceneRoot);
-
-  // Handle resize
-  window.addEventListener('resize', () => {
-    STATE.camera.aspect = window.innerWidth / window.innerHeight;
-    STATE.camera.updateProjectionMatrix();
-    STATE.renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-
-  // Start render loop
-  animate();
+  // Add point lights for rainbow glow
+  const pointLight = new THREE.PointLight(0xffffff, 0.4, 10);
+  pointLight.position.set(0, 2, 0);
+  scene.add(pointLight);
 }
 
-// ============================================================
-// QR CODE SCANNING
-// ============================================================
-function startQRScanning() {
-  const scanCanvas = document.createElement('canvas');
-  const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+// ================================================================
+//  RAINBOW CREATION
+// ================================================================
 
-  function scan() {
-    if (STATE.phase !== 'SCANNING') return;
-
-    if ($video.readyState >= $video.HAVE_ENOUGH_DATA) {
-      // Use smaller resolution for faster scanning
-      const sw = 320;
-      const sh = Math.round(sw * ($video.videoHeight / $video.videoWidth));
-      scanCanvas.width = sw;
-      scanCanvas.height = sh;
-      scanCtx.drawImage($video, 0, 0, sw, sh);
-
-      const imageData = scanCtx.getImageData(0, 0, sw, sh);
-      const code = jsQR(imageData.data, sw, sh, { inversionAttempts: 'dontInvert' });
-
-      if (code) {
-        onQRDetected(code);
-        return;
-      }
-    }
-    STATE.qrScanTimer = setTimeout(scan, QR_SCAN_INTERVAL);
-  }
-  scan();
-}
-
-function onQRDetected(code) {
-  STATE.qrDetectedData = code;
-  STATE.phase = 'CALIBRATING';
-
-  // Haptic feedback
-  if (navigator.vibrate) navigator.vibrate(100);
-
-  // UI transition
-  $scanOv.classList.remove('active');
-  $calibOv.classList.add('active');
-
-  // Capture current gyro orientation as reference point
-  // Small delay to let gyro stabilize
-  setTimeout(() => {
-    captureGyroReference();
-    placeScene();
-
-    // Transition to playing
-    setTimeout(() => {
-      STATE.phase = 'PLAYING';
-      $calibOv.classList.remove('active');
-      $uiOv.classList.add('active');
-      STATE.sceneRoot.visible = true;
-      updateUI();
-    }, 1200);
-  }, 500);
-}
-
-// ============================================================
-// GYROSCOPE TRACKING
-// ============================================================
-let rawAlpha = 0, rawBeta = 0, rawGamma = 0;
-let gyroReady = false;
-
-function startGyroListening() {
-  window.addEventListener('deviceorientation', (e) => {
-    if (e.alpha === null) return;
-    rawAlpha = e.alpha;
-    rawBeta  = e.beta;
-    rawGamma = e.gamma;
-    gyroReady = true;
-  }, true);
-}
-
-function captureGyroReference() {
-  if (!gyroReady) return;
-  // Store reference orientation as quaternion
-  STATE.gyroRef = orientationToQuaternion(rawAlpha, rawBeta, rawGamma);
-}
-
-function orientationToQuaternion(alpha, beta, gamma) {
-  // Convert degrees to radians
-  const a = THREE.MathUtils.degToRad(alpha); // Z axis
-  const b = THREE.MathUtils.degToRad(beta);  // X axis
-  const g = THREE.MathUtils.degToRad(gamma); // Y axis
-
-  // Device orientation → rotation quaternion
-  // Based on W3C spec: ZXY rotation order
-  const cA = Math.cos(a / 2), sA = Math.sin(a / 2);
-  const cB = Math.cos(b / 2), sB = Math.sin(b / 2);
-  const cG = Math.cos(g / 2), sG = Math.sin(g / 2);
-
-  const q = new THREE.Quaternion();
-  q.set(
-    sB * cG * cA - cB * sG * sA,  // x
-    cB * sG * cA + sB * cG * sA,  // y
-    cB * cG * sA + sB * sG * cA,  // z
-    cB * cG * cA - sB * sG * sA   // w
-  );
-
-  // Rotate to match Three.js coordinate system (screen orientation)
-  // Apply -90 degree rotation around X to go from device to camera
-  const screenRotation = new THREE.Quaternion().setFromAxisAngle(
-    new THREE.Vector3(1, 0, 0), -Math.PI / 2
-  );
-  q.multiply(screenRotation);
-
-  return q;
-}
-
-function updateCameraFromGyro() {
-  if (!gyroReady || !STATE.gyroRef) return;
-
-  const currentQ = orientationToQuaternion(rawAlpha, rawBeta, rawGamma);
-
-  // Compute relative rotation from reference orientation
-  const refInverse = STATE.gyroRef.clone().invert();
-  const relativeQ = currentQ.clone().multiply(refInverse);
-
-  // Smooth interpolation
-  STATE.targetQuat.copy(relativeQ);
-  STATE.currentQuat.slerp(STATE.targetQuat, 1 - GYRO_SMOOTHING);
-
-  STATE.camera.quaternion.copy(STATE.currentQuat);
-}
-
-// ============================================================
-// PLACE SCENE IN 3D
-// ============================================================
-function placeScene() {
-  // Position scene root in front of camera at reference orientation
-  STATE.sceneRoot.position.set(0, SCENE_HEIGHT, -SCENE_DISTANCE);
-
-  // Create all game objects
-  createRainbow();
-  createClouds();
-  createSparkles();
-}
-
-// ============================================================
-// RAINBOW (3D TorusGeometry bands)
-// ============================================================
-function createRainbow() {
+function createRainbowMesh(scale) {
   const group = new THREE.Group();
   const colors = [0xff0000, 0xff8800, 0xffff00, 0x00cc00, 0x0088ff, 0x4400cc, 0x8800ff];
-  const baseRadius = 1.2;
+  const baseR = 0.3 * scale;
 
   colors.forEach((color, i) => {
-    const r = baseRadius + i * 0.1;
+    const r = baseR + i * (0.025 * scale);
 
     // Main band
-    const geom = new THREE.TorusGeometry(r, 0.04, 12, 64, Math.PI);
+    const geom = new THREE.TorusGeometry(r, 0.012 * scale, 10, 48, Math.PI);
     const mat = new THREE.MeshStandardMaterial({
-      color: color,
-      emissive: color,
-      emissiveIntensity: 0.35,
-      roughness: 0.3,
-      metalness: 0.1,
-      side: THREE.DoubleSide,
+      color, emissive: color, emissiveIntensity: 0.3,
+      roughness: 0.4, metalness: 0.05, side: THREE.DoubleSide,
     });
-    const mesh = new THREE.Mesh(geom, mat);
-    mesh.rotation.z = 0; // upright half-torus
-    group.add(mesh);
+    group.add(new THREE.Mesh(geom, mat));
 
-    // Glow layer
-    const glowGeom = new THREE.TorusGeometry(r, 0.1, 8, 48, Math.PI);
+    // Glow
+    const glowGeom = new THREE.TorusGeometry(r, 0.03 * scale, 8, 32, Math.PI);
     const glowMat = new THREE.MeshBasicMaterial({
-      color: color,
-      transparent: true,
-      opacity: 0.12,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
+      color, transparent: true, opacity: 0.1,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
     });
-    const glowMesh = new THREE.Mesh(glowGeom, glowMat);
-    group.add(glowMesh);
-  });
-
-  group.rotation.x = -0.1; // slight tilt
-  group.position.set(0, -0.2, 0);
-  group.visible = false; // hidden until all clouds cleared
-  group.scale.set(0.01, 0.01, 0.01); // start tiny for reveal animation
-
-  STATE.rainbowGroup = group;
-  STATE.sceneRoot.add(group);
-}
-
-// ============================================================
-// CLOUDS
-// ============================================================
-function createClouds() {
-  STATE.clouds = [];
-
-  // Distribute clouds in a dome pattern above the rainbow
-  const positions = [];
-  for (let i = 0; i < CLOUD_COUNT; i++) {
-    const angle = (i / CLOUD_COUNT) * Math.PI * 1.6 - 0.3;
-    const layer = Math.floor(i / 4);
-    const radius = 1.0 + layer * 0.6;
-    const height = 0.3 + layer * 0.5 + (Math.random() - 0.5) * 0.3;
-    const x = Math.cos(angle) * radius + (Math.random() - 0.5) * 0.3;
-    const z = (Math.random() - 0.5) * 1.2;
-    positions.push({ x, y: height, z });
-  }
-
-  positions.forEach((pos, i) => {
-    const cloud = createCloudMesh();
-    const scale = 0.2 + Math.random() * 0.15;
-    cloud.scale.set(scale, scale, scale);
-    cloud.position.set(pos.x, pos.y, pos.z);
-
-    // Gentle floating animation data
-    cloud.userData = {
-      index: i,
-      cleared: false,
-      baseY: pos.y,
-      floatOffset: Math.random() * Math.PI * 2,
-      floatSpeed: 0.3 + Math.random() * 0.3,
-      floatAmp: 0.03 + Math.random() * 0.02,
-      dissolveProgress: 0,
-    };
-
-    STATE.sceneRoot.add(cloud);
-    STATE.clouds.push(cloud);
-  });
-}
-
-function createCloudMesh() {
-  const group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    roughness: 0.9,
-    metalness: 0,
-    transparent: true,
-    opacity: 0.92,
-    flatShading: true,
-  });
-
-  const parts = [
-    { p: [0, 0, 0],       s: [1, 0.7, 0.8]  },
-    { p: [0.45, 0.12, 0.1], s: [0.75, 0.6, 0.7] },
-    { p: [-0.45, 0.08,-0.1],s: [0.8, 0.55, 0.7] },
-    { p: [0.18, 0.28, 0.1], s: [0.6, 0.5, 0.55] },
-    { p: [-0.25, 0.22,-0.1],s: [0.55, 0.45, 0.5] },
-    { p: [0.55,-0.05,-0.15],s: [0.5, 0.45, 0.5] },
-    { p: [-0.55,-0.08, 0.15],s:[0.55, 0.4, 0.5] },
-  ];
-
-  parts.forEach(part => {
-    const geom = new THREE.SphereGeometry(0.5, 8, 6);
-    const mesh = new THREE.Mesh(geom, mat.clone());
-    mesh.position.set(...part.p);
-    mesh.scale.set(...part.s);
-    group.add(mesh);
+    group.add(new THREE.Mesh(glowGeom, glowMat));
   });
 
   return group;
 }
 
-// ============================================================
-// SPARKLES
-// ============================================================
-function createSparkles() {
-  const count = 120;
+function placeRainbows() {
+  if (rainbowsPlaced) return;
+  rainbowsPlaced = true;
+
+  // Rainbow placements: [angle(rad), distance(m), height(m), scale, tiltZ(rad)]
+  const placements = [
+    { angle: 0,            dist: 2.0, h: 1.8, scale: 1.0, tilt: 0     },
+    { angle: Math.PI*0.4,  dist: 3.0, h: 2.5, scale: 1.3, tilt: 0.1   },
+    { angle:-Math.PI*0.35, dist: 2.5, h: 1.2, scale: 0.8, tilt:-0.15  },
+    { angle: Math.PI*0.8,  dist: 1.8, h: 3.0, scale: 0.7, tilt: 0.2   },
+    { angle:-Math.PI*0.7,  dist: 3.5, h: 0.8, scale: 1.1, tilt: 0     },
+    { angle: Math.PI*0.15, dist: 4.0, h: 2.0, scale: 0.6, tilt:-0.1   },
+    { angle:-Math.PI*0.9,  dist: 2.2, h: 1.5, scale: 0.9, tilt: 0.05  },
+    { angle: Math.PI*0.6,  dist: 1.5, h: 2.8, scale: 0.5, tilt: 0.15  },
+  ];
+
+  placements.forEach((p, i) => {
+    const rainbow = createRainbowMesh(p.scale);
+
+    // Position in world space around the user
+    const x = Math.sin(p.angle) * p.dist;
+    const z = -Math.cos(p.angle) * p.dist;
+    rainbow.position.set(x, p.h, z);
+
+    // Face roughly toward origin (user)
+    rainbow.rotation.y = p.angle + Math.PI;
+    rainbow.rotation.z = p.tilt;
+
+    // Animate entrance: scale from 0
+    rainbow.scale.set(0.01, 0.01, 0.01);
+    rainbow.userData = {
+      targetScale: 1,
+      spawnDelay: i * 300,
+      spawnTime: -1,
+      spawned: false,
+      floatOffset: Math.random() * Math.PI * 2,
+    };
+
+    scene.add(rainbow);
+
+    // Add sparkles near each rainbow
+    addSparklesAt(x, p.h, z, p.scale);
+  });
+
+  // Update info text
+  setTimeout(() => {
+    document.getElementById('ar-info').textContent = '8 arcobaleni nascosti! Esplorale!';
+  }, 500);
+
+  // Trigger win after some time
+  setTimeout(() => {
+    document.getElementById('ar-info').style.opacity = '0';
+    setTimeout(showWin, 1000);
+  }, 15000);
+}
+
+function addSparklesAt(x, y, z, scale) {
+  const count = 20;
   const positions = new Float32Array(count * 3);
-  const sizes = new Float32Array(count);
 
   for (let i = 0; i < count; i++) {
-    positions[i * 3]     = (Math.random() - 0.5) * 4;
-    positions[i * 3 + 1] = Math.random() * 3 - 0.5;
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 2.5;
-    sizes[i] = 0.02 + Math.random() * 0.04;
+    positions[i*3]   = x + (Math.random()-0.5) * scale * 0.8;
+    positions[i*3+1] = y + (Math.random()-0.5) * scale * 0.6;
+    positions[i*3+2] = z + (Math.random()-0.5) * scale * 0.5;
   }
 
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geom.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
 
   const mat = new THREE.PointsMaterial({
-    color: 0xffffcc,
-    size: 0.04,
-    transparent: true,
-    opacity: 0,
+    color: 0xffffcc, size: 0.025,
+    transparent: true, opacity: 0.7,
     blending: THREE.AdditiveBlending,
     sizeAttenuation: true,
   });
 
-  STATE.sparklesGroup = new THREE.Points(geom, mat);
-  STATE.sparklesGroup.visible = false;
-  STATE.sceneRoot.add(STATE.sparklesGroup);
+  scene.add(new THREE.Points(geom, mat));
 }
 
-// ============================================================
-// TOUCH INTERACTION (swipe to clear clouds)
-// ============================================================
-let touchActive = false;
-let lastTouchPos = null;
-let trailPoints = [];
+// ================================================================
+//  XR RENDER LOOP
+// ================================================================
 
-$canvas.addEventListener('touchstart', (e) => {
-  if (STATE.phase !== 'PLAYING') return;
-  e.preventDefault();
-  touchActive = true;
-  const t = e.touches[0];
-  lastTouchPos = { x: t.clientX, y: t.clientY };
-  trailPoints = [lastTouchPos];
-  tryHitCloud(t.clientX, t.clientY);
-}, { passive: false });
+const clock = new THREE.Clock();
 
-$canvas.addEventListener('touchmove', (e) => {
-  if (STATE.phase !== 'PLAYING' || !touchActive) return;
-  e.preventDefault();
-  const t = e.touches[0];
-  const dx = t.clientX - lastTouchPos.x;
-  const dy = t.clientY - lastTouchPos.y;
-  if (Math.sqrt(dx*dx + dy*dy) > 10) {
-    tryHitCloud(t.clientX, t.clientY);
-    lastTouchPos = { x: t.clientX, y: t.clientY };
-    trailPoints.push(lastTouchPos);
-    drawTrail();
+function onXRFrame(time, frame) {
+  xrSession.requestAnimationFrame(onXRFrame);
+
+  const pose = frame.getViewerPose(xrRefSpace);
+  if (!pose) return;
+
+  // Place rainbows on first valid pose
+  if (!rainbowsPlaced) {
+    placeRainbows();
   }
-}, { passive: false });
 
-$canvas.addEventListener('touchend', () => {
-  touchActive = false;
-  lastTouchPos = null;
-  fadeTrail();
-});
+  // Animate rainbows
+  const dt = clock.getDelta();
+  scene.traverse(obj => {
+    if (obj.userData && obj.userData.hasOwnProperty('targetScale')) {
+      const ud = obj.userData;
 
-// Mouse fallback for desktop testing
-$canvas.addEventListener('mousedown', (e) => {
-  if (STATE.phase !== 'PLAYING') return;
-  touchActive = true;
-  lastTouchPos = { x: e.clientX, y: e.clientY };
-  trailPoints = [lastTouchPos];
-  tryHitCloud(e.clientX, e.clientY);
-});
-$canvas.addEventListener('mousemove', (e) => {
-  if (!touchActive) return;
-  tryHitCloud(e.clientX, e.clientY);
-  lastTouchPos = { x: e.clientX, y: e.clientY };
-  trailPoints.push(lastTouchPos);
-  drawTrail();
-});
-$canvas.addEventListener('mouseup', () => { touchActive = false; fadeTrail(); });
+      // Spawn animation with staggered delay
+      if (!ud.spawned) {
+        if (ud.spawnTime < 0) ud.spawnTime = time;
+        if (time - ud.spawnTime > ud.spawnDelay) {
+          ud.spawned = true;
+        }
+      }
 
-function tryHitCloud(screenX, screenY) {
-  const mouse = new THREE.Vector2(
-    (screenX / window.innerWidth) * 2 - 1,
-    -(screenY / window.innerHeight) * 2 + 1
-  );
+      if (ud.spawned) {
+        // Scale up with elastic ease
+        const curr = obj.scale.x;
+        const target = ud.targetScale;
+        if (curr < target * 0.99) {
+          const newS = curr + (target - curr) * 0.06;
+          obj.scale.set(newS, newS, newS);
+        }
 
-  STATE.raycaster.setFromCamera(mouse, STATE.camera);
-
-  // Collect all cloud child meshes
-  const meshes = [];
-  STATE.clouds.forEach(cloud => {
-    if (cloud.userData.cleared) return;
-    cloud.traverse(child => {
-      if (child.isMesh) meshes.push(child);
-    });
-  });
-
-  const hits = STATE.raycaster.intersectObjects(meshes, false);
-  if (hits.length > 0) {
-    // Find the parent cloud group
-    let obj = hits[0].object;
-    while (obj.parent && !obj.userData.hasOwnProperty('cleared')) {
-      obj = obj.parent;
-    }
-    if (obj.userData && !obj.userData.cleared) {
-      clearCloud(obj);
-    }
-  }
-}
-
-// ============================================================
-// CLOUD CLEARING
-// ============================================================
-function clearCloud(cloud) {
-  if (cloud.userData.cleared) return;
-  cloud.userData.cleared = true;
-  cloud.userData.dissolveProgress = 0;
-  STATE.clearedClouds++;
-
-  // Haptic
-  if (navigator.vibrate) navigator.vibrate(30);
-
-  updateUI();
-
-  if (STATE.clearedClouds >= CLOUD_COUNT) {
-    setTimeout(revealRainbow, 400);
-  }
-}
-
-function animateCloudDissolve(cloud, dt) {
-  if (!cloud.userData.cleared || cloud.userData.dissolveProgress >= 1) return;
-
-  cloud.userData.dissolveProgress += dt * 1.5; // ~0.7s dissolve
-  const p = Math.min(cloud.userData.dissolveProgress, 1);
-  const ease = 1 - Math.pow(1 - p, 3); // easeOutCubic
-
-  cloud.traverse(child => {
-    if (child.isMesh && child.material) {
-      child.material.opacity = 0.92 * (1 - ease);
+        // Gentle float
+        const floatY = Math.sin(time * 0.001 + ud.floatOffset) * 0.03;
+        obj.position.y += floatY * dt;
+      }
     }
   });
-  cloud.scale.multiplyScalar(1 + dt * 0.8);
-  cloud.position.y += dt * 0.5;
 
-  if (p >= 1) {
-    cloud.visible = false;
+  // Render
+  const glLayer = xrSession.renderState.baseLayer;
+  renderer.setSize(glLayer.framebufferWidth, glLayer.framebufferHeight, false);
+
+  for (const view of pose.views) {
+    const viewport = glLayer.getViewport(view);
+    renderer.setViewport(viewport.x, viewport.y, viewport.width, viewport.height);
+
+    camera.matrix.fromArray(view.transform.matrix);
+    camera.projectionMatrix.fromArray(view.projectionMatrix);
+    camera.matrixAutoUpdate = false;
+    camera.matrixWorldNeedsUpdate = true;
+
+    renderer.render(scene, camera);
   }
 }
 
-// ============================================================
-// RAINBOW REVEAL
-// ============================================================
-function revealRainbow() {
-  if (!STATE.rainbowGroup) return;
-  STATE.rainbowGroup.visible = true;
+// ================================================================
+//  WIN SCREEN + CONFETTI
+// ================================================================
 
-  // Animate scale up
-  const startTime = performance.now();
-  function animateReveal() {
-    const elapsed = (performance.now() - startTime) / 1000;
-    const t = Math.min(elapsed / 1.2, 1);
-
-    // Elastic ease out
-    const c4 = (2 * Math.PI) / 3;
-    const ease = t === 0 ? 0 : t === 1 ? 1 :
-      Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
-
-    const s = ease * 1.0;
-    STATE.rainbowGroup.scale.set(s, s, s);
-    STATE.rainbowGroup.rotation.y = (1 - ease) * 0.5;
-
-    if (t < 1) {
-      requestAnimationFrame(animateReveal);
-    } else {
-      // Show sparkles
-      STATE.sparklesGroup.visible = true;
-      STATE.sparklesGroup.material.opacity = 0.6;
-
-      // Win after delay
-      setTimeout(() => {
-        STATE.phase = 'WON';
-        showWinScreen();
-      }, 1500);
-    }
-  }
-  animateReveal();
-}
-
-// ============================================================
-// SWIPE TRAIL
-// ============================================================
-function drawTrail() {
-  if (trailPoints.length < 2) return;
-  const recent = trailPoints.slice(-12);
-  let d = `M ${recent[0].x} ${recent[0].y}`;
-  for (let i = 1; i < recent.length; i++) {
-    d += ` L ${recent[i].x} ${recent[i].y}`;
-  }
-  $trail.innerHTML = `<path d="${d}" stroke="rgba(255,255,255,0.6)" stroke-width="4"
-    stroke-linecap="round" stroke-linejoin="round" fill="none"
-    filter="url(#glow)"/>
-    <defs><filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/>
-    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter></defs>`;
-}
-
-function fadeTrail() {
-  setTimeout(() => { $trail.innerHTML = ''; trailPoints = []; }, 300);
-}
-
-// ============================================================
-// UI UPDATES
-// ============================================================
-function updateUI() {
-  const c = STATE.clearedClouds;
-  const t = CLOUD_COUNT;
-  $cloudCount.textContent = `Nuvole: ${c}/${t}`;
-  $progressFill.style.width = `${(c / t) * 100}%`;
-
-  if (c >= t) {
-    $swipeHint.textContent = '🌈 Arcobaleno svelato!';
-  } else if (c > t * 0.6) {
-    $swipeHint.textContent = 'Quasi fatto! Continua!';
-  }
-}
-
-// ============================================================
-// WIN SCREEN + CONFETTI
-// ============================================================
-function showWinScreen() {
+function showWin() {
   launchConfetti();
-  setTimeout(() => { $winScreen.classList.add('visible'); }, 500);
+  setTimeout(() => {
+    document.getElementById('win-screen').classList.add('visible');
+    if (xrSession) xrSession.end();
+  }, 500);
 }
 
 function launchConfetti() {
@@ -872,126 +608,55 @@ function launchConfetti() {
   for (let i = 0; i < 80; i++) {
     setTimeout(() => {
       const p = document.createElement('div');
-      p.className = 'confetti-piece';
-      p.style.left = Math.random() * 100 + 'vw';
-      p.style.background = colors[Math.floor(Math.random() * colors.length)];
-      p.style.width = (6 + Math.random() * 8) + 'px';
-      p.style.height = (6 + Math.random() * 8) + 'px';
-      p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-      p.style.animationDuration = (2 + Math.random() * 3) + 's';
+      p.className = 'confetti';
+      p.style.left = Math.random()*100 + 'vw';
+      p.style.background = colors[Math.floor(Math.random()*colors.length)];
+      p.style.width = (6+Math.random()*8) + 'px';
+      p.style.height = (6+Math.random()*8) + 'px';
+      p.style.borderRadius = Math.random()>0.5 ? '50%' : '2px';
+      p.style.animationDuration = (2+Math.random()*3) + 's';
       document.body.appendChild(p);
       setTimeout(() => p.remove(), 5500);
     }, i * 30);
   }
 }
 
-// ============================================================
-// ANIMATION LOOP
-// ============================================================
-let lastTime = performance.now();
+// ================================================================
+//  ERROR DISPLAY
+// ================================================================
 
-function animate() {
-  requestAnimationFrame(animate);
-
-  const now = performance.now();
-  const dt = Math.min((now - lastTime) / 1000, 0.1);
-  lastTime = now;
-
-  if (!STATE.renderer) return;
-
-  // Update camera from gyroscope
-  if (STATE.phase === 'PLAYING' || STATE.phase === 'WON') {
-    updateCameraFromGyro();
-  }
-
-  // Animate clouds (floating + dissolve)
-  STATE.clouds.forEach(cloud => {
-    if (!cloud.visible) return;
-
-    if (cloud.userData.cleared) {
-      animateCloudDissolve(cloud, dt);
-    } else {
-      // Gentle floating
-      const ud = cloud.userData;
-      const floatY = Math.sin(now * 0.001 * ud.floatSpeed + ud.floatOffset) * ud.floatAmp;
-      cloud.position.y = ud.baseY + floatY;
-    }
-  });
-
-  // Animate sparkles
-  if (STATE.sparklesGroup && STATE.sparklesGroup.visible) {
-    const positions = STATE.sparklesGroup.geometry.attributes.position.array;
-    for (let i = 0; i < positions.length; i += 3) {
-      positions[i + 1] += Math.sin(now * 0.002 + i) * 0.001;
-    }
-    STATE.sparklesGroup.geometry.attributes.position.needsUpdate = true;
-    STATE.sparklesGroup.rotation.y += dt * 0.1;
-  }
-
-  STATE.renderer.render(STATE.scene, STATE.camera);
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  document.getElementById('splash').classList.remove('hidden');
 }
 
-// ============================================================
-// DESKTOP FALLBACK: Skip QR scan on non-mobile
-// ============================================================
-// On desktop (no gyroscope), allow mouse orbit for testing
-let isDesktop = false;
-let mouseOrbit = { x: 0, y: 0, targetX: 0, targetY: 0 };
+// ================================================================
+//  START FLOW
+// ================================================================
 
-window.addEventListener('deviceorientation', function checkGyro(e) {
-  if (e.alpha !== null) {
-    isDesktop = false;
-    window.removeEventListener('deviceorientation', checkGyro);
+document.getElementById('start-btn').addEventListener('click', async () => {
+  // Check WebXR support upfront
+  if (!navigator.xr) {
+    showError('WebXR non disponibile in questo browser. Usa Chrome su Android con ARCore.');
+    return;
   }
-}, { once: false });
 
-setTimeout(() => {
-  if (!gyroReady) {
-    isDesktop = true;
-    // On desktop, skip QR scan and go straight to playing
-    const origOnQR = onQRDetected;
-    window._desktopStart = function() {
-      if (STATE.phase === 'SCANNING') {
-        STATE.phase = 'CALIBRATING';
-        $scanOv.classList.remove('active');
-        $calibOv.classList.add('active');
-        setTimeout(() => {
-          placeScene();
-          STATE.phase = 'PLAYING';
-          $calibOv.classList.remove('active');
-          $uiOv.classList.add('active');
-          STATE.sceneRoot.visible = true;
-          updateUI();
-        }, 800);
-      }
-    };
+  let arSupported = false;
+  try {
+    arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+  } catch(e) {}
 
-    // Mouse orbit for desktop
-    document.addEventListener('mousemove', (e) => {
-      if (STATE.phase !== 'PLAYING' && STATE.phase !== 'WON') return;
-      if (!isDesktop) return;
-      mouseOrbit.targetX = ((e.clientY / window.innerHeight) - 0.5) * 0.5;
-      mouseOrbit.targetY = ((e.clientX / window.innerWidth) - 0.5) * -0.8;
-    });
-
-    // Override camera update for desktop
-    const origUpdateCamera = updateCameraFromGyro;
-    updateCameraFromGyro = function() {
-      if (isDesktop) {
-        mouseOrbit.x += (mouseOrbit.targetX - mouseOrbit.x) * 0.08;
-        mouseOrbit.y += (mouseOrbit.targetY - mouseOrbit.y) * 0.08;
-        STATE.camera.rotation.set(mouseOrbit.x, mouseOrbit.y, 0);
-      } else {
-        origUpdateCamera();
-      }
-    };
-
-    // Auto-trigger after 2 seconds of scanning on desktop
-    setTimeout(() => {
-      if (STATE.phase === 'SCANNING') window._desktopStart();
-    }, 2000);
+  if (!arSupported) {
+    showError('WebXR immersive-ar non supportato. Serve Chrome su un device Android con ARCore.');
+    return;
   }
-}, 3000);
+
+  // Hide splash, start scratch phase
+  document.getElementById('splash').classList.add('hidden');
+  setTimeout(initScratch, 600);
+});
 </script>
 </body>
 </html>

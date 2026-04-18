@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Cambia il Clima della Tua Vita | Super Win for Life</title>
 
-<!-- Three.js (module version for 8th Wall compatibility) -->
 <script type="importmap">
 { "imports": {
     "three": "https://unpkg.com/three@0.172.0/build/three.module.min.js",
@@ -15,17 +14,9 @@
 <script type="module">
   import * as THREE from 'three';
   window.THREE = THREE;
-  // Also expose individual items 8th Wall expects
-  window.THREE.Object3D = THREE.Object3D;
-  window.THREE.Scene = THREE.Scene;
-  window.THREE.PerspectiveCamera = THREE.PerspectiveCamera;
-  window.THREE.WebGLRenderer = THREE.WebGLRenderer;
 </script>
 
-<!-- 8th Wall XRExtras (loading, errors, fullscreen canvas) -->
 <script src="https://cdn.8thwall.com/web/xrextras/xrextras.js"></script>
-
-<!-- 8th Wall Engine Binary (SLAM - free, no API key) -->
 <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js"
   async crossorigin="anonymous" data-preload-chunks="slam"></script>
 
@@ -35,48 +26,22 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     touch-action:none; -webkit-user-select:none; user-select:none; }
 
-  /* Camera feed canvas */
   #camerafeed {
     position:fixed; inset:0; width:100%; height:100%; z-index:0;
   }
 
-  /* ---- SPLASH ---- */
-  #splash {
-    position:fixed; inset:0; z-index:100;
-    background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    transition: opacity 0.6s ease;
-  }
-  #splash.hidden { opacity:0; pointer-events:none; }
-  .sp-title {
-    font-size:28px; color:#fff; font-weight:800; text-align:center;
-    line-height:1.3; margin-bottom:12px; text-transform:uppercase; letter-spacing:2px;
-  }
-  .sp-sub {
-    font-size:15px; color:rgba(255,255,255,0.65); text-align:center;
-    margin-bottom:40px; max-width:300px; line-height:1.5;
-  }
-  .sp-btn {
-    background: linear-gradient(135deg, #e94560, #c23152);
-    color:#fff; border:none; border-radius:30px;
-    padding:16px 48px; font-size:18px; font-weight:700;
-    cursor:pointer; text-transform:uppercase; letter-spacing:1px;
-    box-shadow:0 4px 20px rgba(233,69,96,0.4);
-  }
-  .sp-btn:active { transform:scale(0.95); }
-
-  /* ---- SCRATCH PHASE ---- */
+  /* ---- SCRATCH ---- */
   #scratch-layer {
     position:fixed; inset:0; z-index:50; display:none;
   }
   #scratch-canvas { width:100%; height:100%; display:block; }
   #scratch-ui {
     position:fixed; top:0; left:0; width:100%; z-index:55;
-    padding:16px 20px; display:flex; align-items:center; gap:12px;
-    pointer-events:none;
+    padding:20px; padding-top: max(20px, env(safe-area-inset-top));
+    display:flex; align-items:center; gap:12px; pointer-events:none;
   }
   .scratch-label {
-    background:rgba(255,255,255,0.9); border-radius:20px;
+    background:rgba(255,255,255,0.92); border-radius:20px;
     padding:8px 16px; font-weight:700; font-size:14px; color:#1a1a2e;
     box-shadow:0 2px 12px rgba(0,0,0,0.15); white-space:nowrap;
   }
@@ -90,15 +55,15 @@
     transition: width 0.3s ease;
   }
   #scratch-hint {
-    position:fixed; bottom:60px; left:50%; transform:translateX(-50%);
-    z-index:55; color:#fff; font-size:18px; font-weight:600;
-    text-shadow:0 2px 10px rgba(0,0,0,0.7);
+    position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+    z-index:55; color:#fff; font-size:20px; font-weight:700;
+    text-shadow:0 2px 12px rgba(0,0,0,0.8);
     animation: pulse 2s ease-in-out infinite; pointer-events:none;
   }
   @keyframes pulse { 0%,100%{opacity:.7;transform:translateX(-50%) scale(1);}
     50%{opacity:1;transform:translateX(-50%) scale(1.05);} }
 
-  /* ---- AR OVERLAY ---- */
+  /* ---- AR UI ---- */
   #ar-overlay {
     position:fixed; inset:0; z-index:10;
     display:none; pointer-events:none;
@@ -106,21 +71,25 @@
   #ar-overlay.active { display:block; }
   #ar-info {
     position:fixed; bottom:40px; left:50%; transform:translateX(-50%);
-    background:rgba(0,0,0,0.6); color:#fff; padding:12px 24px;
+    background:rgba(0,0,0,0.55); color:#fff; padding:10px 22px;
     border-radius:20px; font-size:15px; font-weight:600;
-    text-align:center; pointer-events:none; transition: opacity 0.5s;
+    text-align:center; pointer-events:none; transition:opacity 0.5s;
+    backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
   }
   #ar-counter {
-    position:fixed; top:20px; left:50%; transform:translateX(-50%);
-    background:rgba(255,255,255,0.9); color:#1a1a2e; padding:8px 20px;
+    position:fixed; top:20px; top: max(20px, env(safe-area-inset-top));
+    left:50%; transform:translateX(-50%);
+    background:rgba(255,255,255,0.92); color:#1a1a2e; padding:8px 22px;
     border-radius:20px; font-size:16px; font-weight:700;
     pointer-events:none; display:none;
+    box-shadow:0 2px 12px rgba(0,0,0,0.15);
   }
 
-  /* ---- WIN SCREEN ---- */
+  /* ---- WIN ---- */
   #win-screen {
     position:fixed; inset:0; z-index:200;
-    background: linear-gradient(135deg, #0f3460, #1a1a2e, #16213e);
+    background: rgba(15,52,96,0.92);
+    backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
     display:none; flex-direction:column; align-items:center; justify-content:center;
   }
   #win-screen.visible { display:flex; }
@@ -144,7 +113,6 @@
     box-shadow:0 4px 20px rgba(0,200,83,0.4);
   }
 
-  /* Confetti */
   .confetti {
     position:fixed; z-index:210; pointer-events:none;
     animation: cfall linear forwards;
@@ -157,33 +125,25 @@
 </head>
 <body>
 
-<!-- 8th Wall camera canvas -->
 <canvas id="camerafeed"></canvas>
 
-<!-- SPLASH -->
-<div id="splash">
-  <div class="sp-title">Cambia il Clima<br>della Tua Vita</div>
-  <div class="sp-sub">Gratta via le nuvole e scopri gli arcobaleni nascosti intorno a te!</div>
-  <button class="sp-btn" id="start-btn">Inizia</button>
-</div>
-
-<!-- SCRATCH LAYER -->
+<!-- SCRATCH (shown on top of camera feed) -->
 <div id="scratch-layer">
   <canvas id="scratch-canvas"></canvas>
   <div id="scratch-ui">
     <div class="scratch-label" id="scratch-pct">0%</div>
     <div class="scratch-bar-bg"><div class="scratch-bar-fill" id="scratch-fill"></div></div>
   </div>
-  <div id="scratch-hint">Gratta con il dito!</div>
+  <div id="scratch-hint">Spazza via le nuvole!</div>
 </div>
 
-<!-- AR OVERLAY -->
+<!-- AR UI -->
 <div id="ar-overlay">
   <div id="ar-counter"></div>
   <div id="ar-info">Guardati intorno per trovare gli arcobaleni!</div>
 </div>
 
-<!-- WIN SCREEN -->
+<!-- WIN -->
 <div id="win-screen">
   <div class="win-emoji">🌈</div>
   <div class="win-title">Hai cambiato il clima!</div>
@@ -194,113 +154,134 @@
 
 <script>
 // ================================================================
-//  PHASE 1 — SCRATCH CARD (pure 2D UI)
+//  CONFIG
 // ================================================================
-const SCRATCH_THRESHOLD = 0.55;
-let scratchDone = false;
+const SCRATCH_THRESHOLD = 0.50;
+const TOTAL_RAINBOWS    = 8;
 
+// ================================================================
+//  STATE
+// ================================================================
+let scratchDone    = false;
+let arScene, arCamera, arRenderer;
+let rainbows       = [];
+let rainbowsFound  = 0;
+let themeElements   = [];
+
+// ================================================================
+//  SCRATCH CARD (2D overlay on top of live camera)
+// ================================================================
 function initScratch() {
-  const layer = document.getElementById('scratch-layer');
+  const layer  = document.getElementById('scratch-layer');
   const canvas = document.getElementById('scratch-canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx    = canvas.getContext('2d');
   layer.style.display = 'block';
 
-  const W = window.innerWidth;
-  const H = window.innerHeight;
+  const W = window.innerWidth, H = window.innerHeight;
   const dpr = window.devicePixelRatio || 1;
-  canvas.width = W * dpr;
+  canvas.width  = W * dpr;
   canvas.height = H * dpr;
-  canvas.style.width = W + 'px';
+  canvas.style.width  = W + 'px';
   canvas.style.height = H + 'px';
   ctx.scale(dpr, dpr);
 
   drawCloudCover(ctx, W, H);
 
-  const brushSize = Math.max(W, H) * 0.07;
-  let isDown = false;
-  let checkCounter = 0;
+  const brushSize = Math.max(W, H) * 0.065;
+  let isDown = false, checkN = 0;
 
   function scratch(x, y) {
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
+    // Soft brush with radial gradient
+    const grad = ctx.createRadialGradient(x, y, brushSize*0.2, x, y, brushSize);
+    grad.addColorStop(0, 'rgba(0,0,0,1)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(x, y, brushSize, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-    checkCounter++;
-    if (checkCounter % 8 === 0) checkProgress(ctx, W, H);
+    if (++checkN % 6 === 0) checkProgress(ctx, W, H);
   }
 
-  canvas.addEventListener('touchstart', (e) => {
-    e.preventDefault(); isDown = true;
+  canvas.addEventListener('touchstart', (e)=>{
+    e.preventDefault(); isDown=true;
     scratch(e.touches[0].clientX, e.touches[0].clientY);
-  }, {passive:false});
-  canvas.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    if (isDown) scratch(e.touches[0].clientX, e.touches[0].clientY);
-  }, {passive:false});
-  canvas.addEventListener('touchend', () => { isDown = false; });
-  canvas.addEventListener('mousedown', (e) => { isDown = true; scratch(e.clientX, e.clientY); });
-  canvas.addEventListener('mousemove', (e) => { if (isDown) scratch(e.clientX, e.clientY); });
-  canvas.addEventListener('mouseup', () => { isDown = false; });
+  },{passive:false});
+  canvas.addEventListener('touchmove', (e)=>{
+    e.preventDefault(); if(!isDown) return;
+    scratch(e.touches[0].clientX, e.touches[0].clientY);
+  },{passive:false});
+  canvas.addEventListener('touchend',()=>{isDown=false;});
+  canvas.addEventListener('mousedown',(e)=>{isDown=true;scratch(e.clientX,e.clientY);});
+  canvas.addEventListener('mousemove',(e)=>{if(isDown)scratch(e.clientX,e.clientY);});
+  canvas.addEventListener('mouseup',()=>{isDown=false;});
 }
 
 function drawCloudCover(ctx, W, H) {
-  // Sky gradient
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, '#7a9eb5');
-  grad.addColorStop(0.4, '#9cb8ca');
-  grad.addColorStop(1, '#bdd0da');
+  // Semi-transparent so camera peeks through slightly
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(160,185,205,0.88)');
+  grad.addColorStop(0.5,'rgba(185,205,218,0.90)');
+  grad.addColorStop(1,'rgba(200,218,228,0.88)');
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0,0,W,H);
 
-  // Dense cloud puffs - grid + random
-  ctx.fillStyle = '#ffffff';
-  const gridX = Math.ceil(W / 50);
-  const gridY = Math.ceil(H / 45);
-  for (let gy = -2; gy <= gridY + 2; gy++) {
-    for (let gx = -2; gx <= gridX + 2; gx++) {
-      const cx = gx * 50 + (gy % 2) * 25 + (Math.random() - 0.5) * 35;
-      const cy = gy * 45 + (Math.random() - 0.5) * 25;
-      ctx.globalAlpha = 0.6 + Math.random() * 0.4;
+  // Dense cloud puffs
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  const gx = Math.ceil(W/45), gy = Math.ceil(H/40);
+  for (let y=-2; y<=gy+2; y++) {
+    for (let x=-2; x<=gx+2; x++) {
+      ctx.globalAlpha = 0.5+Math.random()*0.45;
       ctx.beginPath();
-      ctx.arc(cx, cy, 35 + Math.random() * 30, 0, Math.PI * 2);
+      ctx.arc(
+        x*45 + (y%2)*22 + (Math.random()-0.5)*30,
+        y*40 + (Math.random()-0.5)*20,
+        30+Math.random()*28, 0, Math.PI*2);
       ctx.fill();
     }
   }
-  // Extra dense top layer
-  for (let i = 0; i < 150; i++) {
-    ctx.globalAlpha = 0.4 + Math.random() * 0.6;
+  for (let i=0; i<180; i++) {
+    ctx.globalAlpha = 0.35+Math.random()*0.55;
     ctx.beginPath();
-    ctx.arc(Math.random() * W, Math.random() * H, 25 + Math.random() * 45, 0, Math.PI * 2);
+    ctx.arc(Math.random()*W, Math.random()*H, 20+Math.random()*40, 0, Math.PI*2);
     ctx.fill();
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha=1;
+
+  // Branding text
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = `bold ${Math.min(W*0.05,22)}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CAMBIA IL CLIMA DELLA TUA VITA', W/2, H/2 - 16);
+  ctx.font = `bold ${Math.min(W*0.035,15)}px sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillText('SUPER WIN FOR LIFE', W/2, H/2 + 16);
+  ctx.restore();
 }
 
 function checkProgress(ctx, W, H) {
   if (scratchDone) return;
-  const dpr = window.devicePixelRatio || 1;
-  const imgData = ctx.getImageData(0, 0, W * dpr, H * dpr);
+  const dpr = window.devicePixelRatio||1;
+  const imgData = ctx.getImageData(0,0,W*dpr,H*dpr);
   const data = imgData.data;
-  const step = 80;
-  let transparent = 0, total = 0;
-  const iW = imgData.width, iH = imgData.height;
+  const step=80; let transparent=0;
+  const iW=imgData.width, iH=imgData.height;
 
-  for (let sy = 0; sy < step; sy++) {
-    for (let sx = 0; sx < step; sx++) {
-      const px = Math.floor((sx / step) * iW);
-      const py = Math.floor((sy / step) * iH);
-      const idx = (py * iW + px) * 4;
-      if (data[idx + 3] < 128) transparent++;
-      total++;
+  for (let sy=0;sy<step;sy++){
+    for(let sx=0;sx<step;sx++){
+      const px=Math.floor((sx/step)*iW);
+      const py=Math.floor((sy/step)*iH);
+      if (data[(py*iW+px)*4+3]<100) transparent++;
     }
   }
-
-  const pct = transparent / total;
-  const pctInt = Math.min(Math.round(pct * 100), 100);
-  document.getElementById('scratch-pct').textContent = pctInt + '%';
-  document.getElementById('scratch-fill').style.width = pctInt + '%';
+  const pct = transparent/(step*step);
+  const pctInt = Math.min(Math.round(pct*100),100);
+  document.getElementById('scratch-pct').textContent = pctInt+'%';
+  document.getElementById('scratch-fill').style.width = pctInt+'%';
 
   if (pct >= SCRATCH_THRESHOLD) {
     scratchDone = true;
@@ -313,25 +294,30 @@ function onScratchComplete() {
   if (navigator.vibrate) navigator.vibrate(150);
 
   const layer = document.getElementById('scratch-layer');
-  layer.style.transition = 'opacity 1s ease';
-  layer.style.opacity = '0';
-  setTimeout(() => {
-    layer.style.display = 'none';
-    startAR();
-  }, 1000);
+  layer.style.transition='opacity 0.8s ease';
+  layer.style.opacity='0';
+  setTimeout(()=>{
+    layer.style.display='none';
+    showARPhase();
+  }, 800);
 }
 
 // ================================================================
-//  PHASE 2 — 8th Wall SLAM AR
+//  AR PHASE UI (called after scratch done)
+// ================================================================
+function showARPhase() {
+  document.getElementById('ar-overlay').classList.add('active');
+  document.getElementById('ar-counter').style.display = 'block';
+  updateCounter();
+
+  // Trigger rainbow placement now
+  if (arScene) placeRainbows(arScene);
+}
+
+// ================================================================
+//  8TH WALL PIPELINE — starts immediately on page load
 // ================================================================
 
-let arScene, arCamera, arRenderer;
-let rainbows = [];
-let rainbowsFound = 0;
-const TOTAL_RAINBOWS = 8;
-let arStartTime = 0;
-
-// Custom pipeline module for our game
 function gamePipelineModule() {
   return {
     name: 'swfl-game',
@@ -341,37 +327,84 @@ function gamePipelineModule() {
       arScene = scene;
       arCamera = camera;
       arRenderer = renderer;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-      // Lighting
-      scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-      const dir = new THREE.DirectionalLight(0xffffff, 0.8);
-      dir.position.set(2, 5, 3);
-      scene.add(dir);
+      // ---- LIGHTING ----
+      scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+      const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+      sun.position.set(3, 8, 4);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(1024, 1024);
+      sun.shadow.camera.near = 0.1;
+      sun.shadow.camera.far = 30;
+      sun.shadow.camera.left = -10;
+      sun.shadow.camera.right = 10;
+      sun.shadow.camera.top = 10;
+      sun.shadow.camera.bottom = -10;
+      scene.add(sun);
 
-      // Place rainbows around the user in world space
-      placeRainbows(scene);
+      // Warm fill light
+      const fill = new THREE.DirectionalLight(0xffe0c0, 0.3);
+      fill.position.set(-2, 3, -3);
+      scene.add(fill);
 
-      // Show AR overlay
-      document.getElementById('ar-overlay').classList.add('active');
-      document.getElementById('ar-counter').style.display = 'block';
-      updateCounter();
+      // ---- GROUND OCCLUDER ----
+      // Invisible mesh that writes to depth buffer only → hides 3D objects behind real floor
+      const occluderGeo = new THREE.PlaneGeometry(50, 50);
+      const occluderMat = new THREE.MeshStandardMaterial({
+        colorWrite: false,       // don't render color
+        // but still writes to depth buffer by default
+      });
+      const occluder = new THREE.Mesh(occluderGeo, occluderMat);
+      occluder.rotation.x = -Math.PI / 2;
+      occluder.position.y = 0;
+      occluder.renderOrder = -1; // render before other objects
+      scene.add(occluder);
 
-      arStartTime = performance.now();
+      // Shadow-receiving ground
+      const shadowGeo = new THREE.PlaneGeometry(50, 50);
+      const shadowMat = new THREE.ShadowMaterial({ opacity: 0.2 });
+      const shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
+      shadowPlane.rotation.x = -Math.PI / 2;
+      shadowPlane.position.y = 0.001;
+      shadowPlane.receiveShadow = true;
+      scene.add(shadowPlane);
 
-      // Tap to "collect" a rainbow
+      // ---- START SCRATCH immediately (camera is live behind it) ----
+      initScratch();
+
+      // Tap handler for collecting rainbows
       document.getElementById('camerafeed').addEventListener('touchstart', onARTap);
     },
 
-    onUpdate: ({processCpuResult}) => {
-      // Animate rainbows
+    onUpdate: () => {
       const time = performance.now();
+
+      // Animate rainbows
       rainbows.forEach(rb => {
         if (!rb.visible || rb.userData.collected) return;
-        // Gentle float
         const ud = rb.userData;
-        rb.position.y = ud.baseY + Math.sin(time * 0.001 + ud.floatOffset) * 0.04;
-        // Slow rotation
-        rb.rotation.y += 0.003;
+        rb.position.y = ud.baseY + Math.sin(time*0.0008 + ud.floatOffset) * 0.05;
+        rb.rotation.y += 0.002;
+      });
+
+      // Animate theme elements
+      themeElements.forEach(el => {
+        if (!el.visible) return;
+        const ud = el.userData;
+        if (ud.type === 'coin') {
+          el.rotation.y += 0.03;
+          el.position.y = ud.baseY + Math.sin(time*0.001 + ud.phase) * 0.03;
+        } else if (ud.type === 'clover') {
+          el.rotation.y += 0.005;
+          el.position.y = ud.baseY + Math.sin(time*0.0006 + ud.phase) * 0.02;
+        } else if (ud.type === 'star') {
+          el.rotation.z += 0.01;
+          el.rotation.y += 0.008;
+          const s = ud.baseScale * (1 + Math.sin(time*0.002 + ud.phase)*0.15);
+          el.scale.set(s,s,s);
+        }
       });
     },
 
@@ -381,104 +414,326 @@ function gamePipelineModule() {
   };
 }
 
+// ================================================================
+//  PLACE RAINBOWS + THEMED ELEMENTS
+// ================================================================
 function placeRainbows(scene) {
-  // 8 rainbows scattered around the user at various angles, distances, heights
+  if (rainbows.length > 0) return; // already placed
+
   const placements = [
-    { angle: 0,                dist: 2.5, h: 1.2, scale: 0.8  },
-    { angle: Math.PI * 0.3,    dist: 3.5, h: 2.0, scale: 1.0  },
-    { angle: -Math.PI * 0.35,  dist: 2.0, h: 0.6, scale: 0.6  },
-    { angle: Math.PI * 0.65,   dist: 4.0, h: 2.8, scale: 1.2  },
-    { angle: -Math.PI * 0.6,   dist: 3.0, h: 1.6, scale: 0.9  },
-    { angle: Math.PI * 0.9,    dist: 2.2, h: 3.2, scale: 0.7  },
-    { angle: -Math.PI * 0.85,  dist: 3.8, h: 0.9, scale: 1.1  },
-    { angle: Math.PI * 0.15,   dist: 1.8, h: 2.4, scale: 0.5  },
+    { angle: 0,                dist:2.5, h:1.3, scale:0.8  },
+    { angle: Math.PI*0.3,      dist:3.5, h:2.2, scale:1.0  },
+    { angle:-Math.PI*0.35,     dist:2.0, h:0.7, scale:0.6  },
+    { angle: Math.PI*0.65,     dist:4.0, h:2.8, scale:1.2  },
+    { angle:-Math.PI*0.6,      dist:3.0, h:1.6, scale:0.9  },
+    { angle: Math.PI*0.9,      dist:2.2, h:3.0, scale:0.7  },
+    { angle:-Math.PI*0.85,     dist:3.8, h:1.0, scale:1.1  },
+    { angle: Math.PI*0.15,     dist:1.8, h:2.5, scale:0.5  },
   ];
 
   placements.forEach((p, i) => {
-    const rainbow = createRainbowMesh(p.scale);
+    const rainbow = createRainbow(p.scale);
     const x = Math.sin(p.angle) * p.dist;
     const z = -Math.cos(p.angle) * p.dist;
     rainbow.position.set(x, p.h, z);
-    rainbow.rotation.y = p.angle + Math.PI; // face user
+    rainbow.rotation.y = p.angle + Math.PI;
 
     rainbow.userData = {
-      index: i,
-      collected: false,
-      baseY: p.h,
-      floatOffset: Math.random() * Math.PI * 2,
+      index: i, collected: false,
+      baseY: p.h, floatOffset: Math.random()*Math.PI*2,
     };
 
-    // Spawn animation
-    rainbow.scale.set(0.01, 0.01, 0.01);
-    animateSpawn(rainbow, i * 400);
-
-    // Add sparkles
-    const sparkles = createSparkles(p.scale);
-    sparkles.position.copy(rainbow.position);
-    scene.add(sparkles);
-
+    rainbow.scale.set(0.01,0.01,0.01);
+    animateSpawn(rainbow, i*350);
     scene.add(rainbow);
     rainbows.push(rainbow);
+
+    // Sparkles near rainbow
+    scene.add(createSparkles(x, p.h, z, p.scale));
+
+    // Pot of gold at base of some rainbows
+    if (i % 3 === 0) {
+      const pot = createPotOfGold();
+      pot.position.set(x, 0.01, z);
+      pot.userData = {type:'pot', baseY:0.01, phase:i};
+      scene.add(pot);
+    }
   });
+
+  // ---- THEMED ELEMENTS scattered in scene ----
+
+  // Gold coins
+  for (let i = 0; i < 12; i++) {
+    const coin = createCoin();
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 1.5 + Math.random() * 3;
+    const h     = 0.5 + Math.random() * 2.5;
+    coin.position.set(Math.sin(angle)*dist, h, -Math.cos(angle)*dist);
+    coin.userData = { type:'coin', baseY:h, phase:Math.random()*Math.PI*2 };
+    scene.add(coin);
+    themeElements.push(coin);
+  }
+
+  // Four-leaf clovers
+  for (let i = 0; i < 6; i++) {
+    const clover = createClover();
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 2 + Math.random() * 2.5;
+    const h     = 0.3 + Math.random() * 1.8;
+    clover.position.set(Math.sin(angle)*dist, h, -Math.cos(angle)*dist);
+    clover.userData = { type:'clover', baseY:h, phase:Math.random()*Math.PI*2 };
+    scene.add(clover);
+    themeElements.push(clover);
+  }
+
+  // Stars
+  for (let i = 0; i < 15; i++) {
+    const star = createStar();
+    const angle = Math.random() * Math.PI * 2;
+    const dist  = 1 + Math.random() * 4;
+    const h     = 1 + Math.random() * 3;
+    const s     = 0.03 + Math.random() * 0.05;
+    star.position.set(Math.sin(angle)*dist, h, -Math.cos(angle)*dist);
+    star.scale.set(s,s,s);
+    star.userData = { type:'star', baseScale:s, phase:Math.random()*Math.PI*2 };
+    scene.add(star);
+    themeElements.push(star);
+  }
+
+  // Floating lottery ticket shapes
+  for (let i = 0; i < 4; i++) {
+    const ticket = createTicket();
+    const angle = (i/4) * Math.PI * 2 + 0.3;
+    const dist  = 2.5 + Math.random();
+    ticket.position.set(Math.sin(angle)*dist, 1.5+Math.random(), -Math.cos(angle)*dist);
+    ticket.rotation.y = angle + Math.PI;
+    ticket.rotation.x = -0.2 + Math.random()*0.4;
+    ticket.userData = { type:'coin', baseY:ticket.position.y, phase:Math.random()*Math.PI*2 };
+    scene.add(ticket);
+    themeElements.push(ticket);
+  }
 }
 
-function createRainbowMesh(scale) {
+// ================================================================
+//  3D ASSET BUILDERS
+// ================================================================
+
+function createRainbow(scale) {
   const group = new THREE.Group();
-  const colors = [0xff0000, 0xff8800, 0xffff00, 0x00cc00, 0x0088ff, 0x4400cc, 0x8800ff];
+  const colors = [0xff0000,0xff8800,0xffff00,0x00cc00,0x0088ff,0x4400cc,0x8800ff];
   const baseR = 0.25 * scale;
 
   colors.forEach((color, i) => {
-    const r = baseR + i * (0.022 * scale);
-
-    // Main band
-    const geom = new THREE.TorusGeometry(r, 0.01 * scale, 10, 48, Math.PI);
+    const r = baseR + i * 0.022 * scale;
+    const geom = new THREE.TorusGeometry(r, 0.012*scale, 10, 48, Math.PI);
     const mat = new THREE.MeshStandardMaterial({
-      color, emissive: color, emissiveIntensity: 0.35,
-      roughness: 0.35, metalness: 0.05, side: THREE.DoubleSide,
+      color, emissive:color, emissiveIntensity:0.3,
+      roughness:0.35, metalness:0.05, side:THREE.DoubleSide,
     });
-    group.add(new THREE.Mesh(geom, mat));
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.castShadow = true;
+    group.add(mesh);
 
     // Glow
-    const glowGeom = new THREE.TorusGeometry(r, 0.025 * scale, 8, 32, Math.PI);
-    const glowMat = new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: 0.12,
-      blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-    });
-    group.add(new THREE.Mesh(glowGeom, glowMat));
+    const gGeo = new THREE.TorusGeometry(r, 0.028*scale, 8, 32, Math.PI);
+    group.add(new THREE.Mesh(gGeo, new THREE.MeshBasicMaterial({
+      color, transparent:true, opacity:0.1,
+      blending:THREE.AdditiveBlending, side:THREE.DoubleSide,
+    })));
   });
 
   return group;
 }
 
-function createSparkles(scale) {
-  const count = 15;
-  const positions = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
-    positions[i*3]   = (Math.random()-0.5) * scale * 0.6;
-    positions[i*3+1] = (Math.random()-0.5) * scale * 0.4;
-    positions[i*3+2] = (Math.random()-0.5) * scale * 0.4;
+function createSparkles(x, y, z, scale) {
+  const n = 18;
+  const pos = new Float32Array(n*3);
+  for (let i=0;i<n;i++) {
+    pos[i*3]   = x + (Math.random()-0.5)*scale*0.7;
+    pos[i*3+1] = y + (Math.random()-0.5)*scale*0.5;
+    pos[i*3+2] = z + (Math.random()-0.5)*scale*0.5;
   }
-  const geom = new THREE.BufferGeometry();
-  geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  return new THREE.Points(geom, new THREE.PointsMaterial({
-    color: 0xffffcc, size: 0.02, transparent: true, opacity: 0.6,
-    blending: THREE.AdditiveBlending, sizeAttenuation: true,
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  return new THREE.Points(geo, new THREE.PointsMaterial({
+    color:0xffffcc, size:0.022, transparent:true, opacity:0.65,
+    blending:THREE.AdditiveBlending, sizeAttenuation:true,
   }));
 }
 
+// Gold coin
+function createCoin() {
+  const group = new THREE.Group();
+  const geo = new THREE.CylinderGeometry(0.06, 0.06, 0.012, 16);
+  const mat = new THREE.MeshStandardMaterial({
+    color:0xffd700, emissive:0xffa000, emissiveIntensity:0.2,
+    roughness:0.2, metalness:0.8,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+
+  // "€" emboss — just a slightly raised disc on each face
+  const embossGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.002, 12);
+  const embossMat = new THREE.MeshStandardMaterial({
+    color:0xffec80, roughness:0.3, metalness:0.7,
+  });
+  const embossTop = new THREE.Mesh(embossGeo, embossMat);
+  embossTop.position.y = 0.007;
+  const embossBot = embossTop.clone();
+  embossBot.position.y = -0.007;
+
+  group.add(mesh, embossTop, embossBot);
+  return group;
+}
+
+// Four-leaf clover
+function createClover() {
+  const group = new THREE.Group();
+  const leafMat = new THREE.MeshStandardMaterial({
+    color:0x2ecc71, emissive:0x1a8a4a, emissiveIntensity:0.15,
+    roughness:0.6, metalness:0.05, side:THREE.DoubleSide,
+  });
+
+  for (let i = 0; i < 4; i++) {
+    const leaf = new THREE.Mesh(
+      new THREE.SphereGeometry(0.04, 8, 6),
+      leafMat
+    );
+    const a = (i / 4) * Math.PI * 2;
+    leaf.position.set(Math.cos(a)*0.035, 0, Math.sin(a)*0.035);
+    leaf.scale.set(1, 0.3, 1.2);
+    group.add(leaf);
+  }
+
+  // Stem
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.004, 0.004, 0.08, 4),
+    new THREE.MeshStandardMaterial({color:0x27ae60, roughness:0.7})
+  );
+  stem.position.y = -0.045;
+  group.add(stem);
+
+  return group;
+}
+
+// Star
+function createStar() {
+  const shape = new THREE.Shape();
+  const spikes = 5, outerR = 1, innerR = 0.45;
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+    if (i === 0) shape.moveTo(Math.cos(a)*r, Math.sin(a)*r);
+    else shape.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+  }
+  shape.closePath();
+
+  const geo = new THREE.ExtrudeGeometry(shape, {depth:0.15, bevelEnabled:true, bevelSize:0.05, bevelThickness:0.05});
+  const mat = new THREE.MeshStandardMaterial({
+    color:0xffd700, emissive:0xffaa00, emissiveIntensity:0.3,
+    roughness:0.25, metalness:0.6,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.castShadow = true;
+  return mesh;
+}
+
+// Pot of gold
+function createPotOfGold() {
+  const group = new THREE.Group();
+
+  // Pot body (half-sphere + cylinder)
+  const potMat = new THREE.MeshStandardMaterial({
+    color:0x2c2c2c, roughness:0.4, metalness:0.6
+  });
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.1, 0.07, 0.1, 16), potMat
+  );
+  body.position.y = 0.05;
+  body.castShadow = true;
+  group.add(body);
+
+  // Rim
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.1, 0.012, 8, 16), potMat
+  );
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.1;
+  group.add(rim);
+
+  // Gold pile on top
+  const goldMat = new THREE.MeshStandardMaterial({
+    color:0xffd700, emissive:0xffa000, emissiveIntensity:0.15,
+    roughness:0.2, metalness:0.8,
+  });
+  for (let i = 0; i < 6; i++) {
+    const nugget = new THREE.Mesh(
+      new THREE.SphereGeometry(0.02 + Math.random()*0.015, 6, 4),
+      goldMat
+    );
+    nugget.position.set(
+      (Math.random()-0.5)*0.08,
+      0.1 + Math.random()*0.03,
+      (Math.random()-0.5)*0.08
+    );
+    nugget.castShadow = true;
+    group.add(nugget);
+  }
+
+  group.scale.set(1.2,1.2,1.2);
+  return group;
+}
+
+// Lottery ticket
+function createTicket() {
+  const group = new THREE.Group();
+
+  // Ticket body
+  const ticketGeo = new THREE.BoxGeometry(0.18, 0.09, 0.003);
+  const ticketMat = new THREE.MeshStandardMaterial({
+    color:0xe94560, roughness:0.5, metalness:0.1,
+  });
+  const ticket = new THREE.Mesh(ticketGeo, ticketMat);
+  ticket.castShadow = true;
+  group.add(ticket);
+
+  // Gold stripe
+  const stripe = new THREE.Mesh(
+    new THREE.BoxGeometry(0.18, 0.015, 0.004),
+    new THREE.MeshStandardMaterial({
+      color:0xffd700, roughness:0.2, metalness:0.7,
+    })
+  );
+  stripe.position.y = 0.025;
+  stripe.position.z = 0.001;
+  group.add(stripe);
+
+  // "SUPER WIN" text area (lighter rect)
+  const label = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1, 0.03, 0.004),
+    new THREE.MeshStandardMaterial({color:0xffffff, roughness:0.6})
+  );
+  label.position.y = -0.015;
+  label.position.z = 0.001;
+  group.add(label);
+
+  return group;
+}
+
+// ================================================================
+//  SPAWN ANIMATION
+// ================================================================
 function animateSpawn(obj, delay) {
   setTimeout(() => {
     const start = performance.now();
-    function step() {
-      const t = Math.min((performance.now() - start) / 800, 1);
-      // Elastic ease out
-      const c4 = (2 * Math.PI) / 3;
-      const ease = t === 0 ? 0 : t === 1 ? 1 :
-        Math.pow(2, -10*t) * Math.sin((t*10 - 0.75)*c4) + 1;
+    (function step() {
+      const t = Math.min((performance.now()-start)/900, 1);
+      const c4 = (2*Math.PI)/3;
+      const ease = t===0?0 : t===1?1 :
+        Math.pow(2,-10*t)*Math.sin((t*10-0.75)*c4)+1;
       obj.scale.set(ease, ease, ease);
       if (t < 1) requestAnimationFrame(step);
-    }
-    step();
+    })();
   }, delay);
 }
 
@@ -486,22 +741,23 @@ function animateSpawn(obj, delay) {
 //  TAP TO COLLECT RAINBOW
 // ================================================================
 function onARTap(e) {
+  if (scratchDone === false) return; // still in scratch phase
   if (rainbowsFound >= TOTAL_RAINBOWS) return;
+
   const touch = e.touches[0];
   const rect = e.target.getBoundingClientRect();
-  const x = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
-  const y = -((touch.clientY - rect.top) / rect.height) * 2 + 1;
+  const x = ((touch.clientX-rect.left)/rect.width)*2-1;
+  const y =-((touch.clientY-rect.top)/rect.height)*2+1;
 
   const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(new THREE.Vector2(x, y), arCamera);
+  raycaster.setFromCamera(new THREE.Vector2(x,y), arCamera);
 
-  // Check intersection with each rainbow group's children
   for (const rb of rainbows) {
     if (rb.userData.collected) continue;
     const meshes = [];
-    rb.traverse(c => { if (c.isMesh) meshes.push(c); });
+    rb.traverse(c=>{if(c.isMesh)meshes.push(c);});
     const hits = raycaster.intersectObjects(meshes, false);
-    if (hits.length > 0 && hits[0].distance < 8) {
+    if (hits.length > 0 && hits[0].distance < 10) {
       collectRainbow(rb);
       break;
     }
@@ -514,25 +770,20 @@ function collectRainbow(rb) {
   if (navigator.vibrate) navigator.vibrate(50);
   updateCounter();
 
-  // Collect animation: scale up + fade
   const start = performance.now();
-  function anim() {
-    const t = Math.min((performance.now() - start) / 600, 1);
-    const s = 1 + t * 0.5;
-    rb.scale.set(s, s, s);
-    rb.traverse(c => {
-      if (c.material && c.material.opacity !== undefined) {
-        c.material.transparent = true;
-        c.material.opacity = Math.max(0, 1 - t);
-      }
+  (function anim() {
+    const t = Math.min((performance.now()-start)/600, 1);
+    const s = 1+t*0.6;
+    rb.scale.set(s,s,s);
+    rb.traverse(c=>{
+      if(c.material){c.material.transparent=true;c.material.opacity=Math.max(0,1-t);}
     });
-    if (t < 1) requestAnimationFrame(anim);
-    else {
-      rb.visible = false;
-      if (rainbowsFound >= TOTAL_RAINBOWS) onAllCollected();
+    if(t<1) requestAnimationFrame(anim);
+    else{
+      rb.visible=false;
+      if(rainbowsFound>=TOTAL_RAINBOWS) onAllCollected();
     }
-  }
-  anim();
+  })();
 }
 
 function updateCounter() {
@@ -546,65 +797,55 @@ function onAllCollected() {
 }
 
 // ================================================================
-//  WIN SCREEN + CONFETTI
+//  WIN + CONFETTI
 // ================================================================
 function showWin() {
   launchConfetti();
-  setTimeout(() => {
-    document.getElementById('win-screen').classList.add('visible');
-  }, 500);
+  setTimeout(()=>{ document.getElementById('win-screen').classList.add('visible'); }, 500);
 }
 
 function launchConfetti() {
-  const colors = ['#ff0000','#ff8800','#ffff00','#00cc00','#0088ff','#8800ff','#ff00ff','#fff'];
-  for (let i = 0; i < 80; i++) {
-    setTimeout(() => {
-      const p = document.createElement('div');
-      p.className = 'confetti';
-      p.style.left = Math.random()*100 + 'vw';
-      p.style.background = colors[Math.floor(Math.random()*colors.length)];
-      p.style.width = (6+Math.random()*8)+'px';
-      p.style.height = (6+Math.random()*8)+'px';
-      p.style.borderRadius = Math.random()>0.5?'50%':'2px';
-      p.style.animationDuration = (2+Math.random()*3)+'s';
+  const cols=['#ff0000','#ff8800','#ffff00','#00cc00','#0088ff','#8800ff','#ff00ff','#ffd700'];
+  for(let i=0;i<80;i++){
+    setTimeout(()=>{
+      const p=document.createElement('div');
+      p.className='confetti';
+      p.style.left=Math.random()*100+'vw';
+      p.style.background=cols[Math.floor(Math.random()*cols.length)];
+      p.style.width=(6+Math.random()*8)+'px';
+      p.style.height=(6+Math.random()*8)+'px';
+      p.style.borderRadius=Math.random()>.5?'50%':'2px';
+      p.style.animationDuration=(2+Math.random()*3)+'s';
       document.body.appendChild(p);
-      setTimeout(() => p.remove(), 5500);
-    }, i * 30);
+      setTimeout(()=>p.remove(),5500);
+    },i*30);
   }
 }
 
 // ================================================================
-//  START AR (8th Wall engine)
+//  BOOT — Start 8th Wall immediately
 // ================================================================
-function startAR() {
+function boot() {
   const onxrloaded = () => {
     XR8.addCameraPipelineModules([
-      XR8.GlTextureRenderer.pipelineModule(),     // Camera feed rendering
-      XR8.Threejs.pipelineModule(),                // Three.js integration
-      XR8.XrController.pipelineModule(),           // SLAM world tracking
-      XRExtras.FullWindowCanvas.pipelineModule(),  // Full-screen canvas
-      XRExtras.Loading.pipelineModule(),           // Loading screen + iOS permissions
-      XRExtras.RuntimeError.pipelineModule(),      // Error handling
-      gamePipelineModule(),                        // Our game logic
+      XR8.GlTextureRenderer.pipelineModule(),
+      XR8.Threejs.pipelineModule(),
+      XR8.XrController.pipelineModule(),
+      XRExtras.FullWindowCanvas.pipelineModule(),
+      XRExtras.Loading.pipelineModule(),
+      XRExtras.RuntimeError.pipelineModule(),
+      gamePipelineModule(),
     ]);
-
     XR8.run({canvas: document.getElementById('camerafeed')});
   };
 
-  if (window.XR8) {
-    onxrloaded();
-  } else {
-    window.addEventListener('xrloaded', onxrloaded);
-  }
+  if (window.XR8) onxrloaded();
+  else window.addEventListener('xrloaded', onxrloaded);
 }
 
-// ================================================================
-//  SPLASH → SCRATCH → AR
-// ================================================================
-document.getElementById('start-btn').addEventListener('click', () => {
-  document.getElementById('splash').classList.add('hidden');
-  setTimeout(initScratch, 600);
-});
+// Start everything immediately — no splash, XR boots right away
+// Camera permissions are handled by XRExtras.Loading
+boot();
 </script>
 </body>
 </html>

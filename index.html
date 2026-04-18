@@ -123,13 +123,115 @@
     0%{transform:translateY(-20px) rotate(0deg);opacity:1;}
     100%{transform:translateY(110vh) rotate(720deg);opacity:0;}
   }
+
+  /* ---- INTRO SPLASH ---- */
+  #intro {
+    position:fixed; inset:0; z-index:500;
+    background: linear-gradient(160deg, #0a0e27 0%, #141b3d 40%, #1a2550 70%, #0f1a3a 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transition: opacity 0.8s ease;
+    overflow:hidden;
+  }
+  #intro.hidden { opacity:0; pointer-events:none; }
+
+  .intro-logo-wrap {
+    margin-bottom:8px; text-align:center;
+  }
+  .intro-logo {
+    font-size:15px; font-weight:800; color:#e94560; text-transform:uppercase;
+    letter-spacing:6px; margin-bottom:4px;
+  }
+  .intro-logo-main {
+    font-size:36px; font-weight:900; color:#fff; text-transform:uppercase;
+    letter-spacing:3px; line-height:1.1;
+    background: linear-gradient(180deg, #ffffff 40%, #c0d0e0 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .intro-logo-sub {
+    font-size:16px; font-weight:600; color:#ffd700; letter-spacing:4px;
+    text-transform:uppercase; margin-top:2px;
+  }
+
+  .intro-divider {
+    width:60px; height:3px; border-radius:2px; margin:28px auto;
+    background: linear-gradient(90deg,#ff0000,#ff8800,#ffff00,#00cc00,#0066ff,#8800ff);
+  }
+
+  .intro-title {
+    font-size:22px; color:#fff; font-weight:700; text-align:center;
+    line-height:1.4; margin-bottom:24px; max-width:300px;
+  }
+
+  .intro-steps {
+    max-width:300px; margin-bottom:36px;
+  }
+  .intro-step {
+    display:flex; align-items:flex-start; gap:12px; margin-bottom:16px;
+  }
+  .intro-step-num {
+    width:28px; height:28px; border-radius:50%; flex-shrink:0;
+    background: rgba(233,69,96,0.25); border:2px solid #e94560;
+    display:flex; align-items:center; justify-content:center;
+    font-size:13px; font-weight:800; color:#e94560;
+  }
+  .intro-step-text {
+    font-size:14px; color:rgba(255,255,255,0.8); line-height:1.4; padding-top:3px;
+  }
+
+  .intro-btn {
+    background: linear-gradient(135deg, #e94560, #c23152);
+    color:#fff; border:none; border-radius:30px;
+    padding:18px 56px; font-size:19px; font-weight:700;
+    cursor:pointer; text-transform:uppercase; letter-spacing:2px;
+    box-shadow: 0 4px 25px rgba(233,69,96,0.5);
+    transition: transform 0.2s;
+  }
+  .intro-btn:active { transform:scale(0.95); }
+
+  /* Decorative rainbow arc behind intro */
+  .intro-bg-arc {
+    position:absolute; top:-120px; left:50%; transform:translateX(-50%);
+    width:500px; height:250px; border-radius:250px 250px 0 0;
+    background: conic-gradient(from 180deg,
+      rgba(255,0,0,0.06), rgba(255,136,0,0.06), rgba(255,255,0,0.06),
+      rgba(0,204,0,0.06), rgba(0,136,255,0.06), rgba(136,0,255,0.06),
+      rgba(255,0,0,0.06));
+    pointer-events:none;
+  }
 </style>
 </head>
 <body>
 
+<!-- INTRO SPLASH (before everything) -->
+<div id="intro">
+  <div class="intro-bg-arc"></div>
+  <div class="intro-logo-wrap">
+    <div class="intro-logo">Sisal</div>
+    <div class="intro-logo-main">Super Win<br>for Life</div>
+    <div class="intro-logo-sub">Fake OOH</div>
+  </div>
+  <div class="intro-divider"></div>
+  <div class="intro-title">Cambia il clima<br>della tua vita!</div>
+  <div class="intro-steps">
+    <div class="intro-step">
+      <div class="intro-step-num">1</div>
+      <div class="intro-step-text">Gratta via le nuvole grigie dallo schermo</div>
+    </div>
+    <div class="intro-step">
+      <div class="intro-step-num">2</div>
+      <div class="intro-step-text">Trova e tocca gli arcobaleni nascosti intorno a te</div>
+    </div>
+    <div class="intro-step">
+      <div class="intro-step-num">3</div>
+      <div class="intro-step-text">Riporta il colore nel mondo e vinci il tuo gadget!</div>
+    </div>
+  </div>
+  <button class="intro-btn" id="intro-btn">Gioca ora</button>
+</div>
+
 <canvas id="camerafeed"></canvas>
 
-<!-- SCRATCH (shown on top of camera feed) -->
+<!-- SCRATCH -->
 <div id="scratch-layer">
   <canvas id="scratch-canvas"></canvas>
   <div id="scratch-ui">
@@ -169,6 +271,63 @@ let arScene, arCamera, arRenderer;
 let rainbows       = [];
 let rainbowsFound  = 0;
 let themeElements   = [];
+
+// ================================================================
+//  AUDIO
+// ================================================================
+const SFX = {
+  bg: null,
+  collect: null,
+  final: null,
+  _initialized: false,
+};
+
+function initAudio() {
+  if (SFX._initialized) return;
+  SFX._initialized = true;
+
+  SFX.bg = new Audio('sfx/background.mp3');
+  SFX.bg.loop = true;
+  SFX.bg.volume = 0.35;
+
+  SFX.collect = new Audio('sfx/collect.mp3');
+  SFX.collect.volume = 0.7;
+
+  SFX.final = new Audio('sfx/final.mp3');
+  SFX.final.volume = 0.8;
+
+  // Preload
+  SFX.bg.load();
+  SFX.collect.load();
+  SFX.final.load();
+}
+
+function playBG() {
+  if (!SFX.bg) return;
+  SFX.bg.play().catch(() => {});
+}
+
+function playCollect() {
+  if (!SFX.collect) return;
+  // Clone for overlapping plays
+  const s = SFX.collect.cloneNode();
+  s.volume = 0.7;
+  s.play().catch(() => {});
+}
+
+function playFinal() {
+  if (!SFX.bg || !SFX.final) return;
+  // Fade out BG music
+  const fadeOut = setInterval(() => {
+    if (SFX.bg.volume > 0.05) {
+      SFX.bg.volume = Math.max(0, SFX.bg.volume - 0.03);
+    } else {
+      SFX.bg.pause();
+      clearInterval(fadeOut);
+    }
+  }, 80);
+  SFX.final.play().catch(() => {});
+}
 
 // ================================================================
 //  SCRATCH CARD (2D overlay on top of live camera)
@@ -222,101 +381,148 @@ function initScratch() {
 }
 
 function drawCloudCover(ctx, W, H) {
-  // Transparent base — camera is visible where there are no clouds
   ctx.clearRect(0, 0, W, H);
 
-  // Helper: draw one cartoon cloud (cluster of overlapping circles)
-  function drawCloud(cx, cy, size, opacity) {
+  // Helper: draw one cartoon cloud
+  function drawCloud(cx, cy, size, opts) {
+    const {opacity, shadowAlpha, bodyColor, highlightAlpha} = Object.assign(
+      {opacity:0.92, shadowAlpha:0.35, bodyColor:'255,255,255', highlightAlpha:0.5}, opts);
+
     ctx.save();
     ctx.globalAlpha = opacity;
 
-    // Shadow layer
-    ctx.fillStyle = 'rgba(180,195,210,0.4)';
-    const sh = size * 0.08;
+    // Puff layout — a natural cloud shape
     const puffs = [
-      {dx:0, dy:0, r:size*0.5},
-      {dx:-size*0.35, dy:size*0.05, r:size*0.38},
-      {dx:size*0.38, dy:size*0.03, r:size*0.4},
-      {dx:-size*0.18, dy:-size*0.22, r:size*0.32},
-      {dx:size*0.15, dy:-size*0.25, r:size*0.35},
-      {dx:-size*0.5, dy:size*0.15, r:size*0.28},
-      {dx:size*0.52, dy:size*0.12, r:size*0.3},
-      {dx:0, dy:-size*0.35, r:size*0.28},
+      {dx:0,           dy:0,            r:size*0.48},
+      {dx:-size*0.32,  dy:size*0.06,    r:size*0.36},
+      {dx: size*0.35,  dy:size*0.04,    r:size*0.38},
+      {dx:-size*0.15,  dy:-size*0.2,    r:size*0.3},
+      {dx: size*0.12,  dy:-size*0.23,   r:size*0.33},
+      {dx:-size*0.48,  dy:size*0.14,    r:size*0.26},
+      {dx: size*0.5,   dy:size*0.11,    r:size*0.28},
+      {dx:0,           dy:-size*0.32,   r:size*0.25},
+      {dx:-size*0.28,  dy:-size*0.12,   r:size*0.22},
+      {dx: size*0.28,  dy:-size*0.14,   r:size*0.24},
     ];
 
+    // 1) Bottom shadow
+    ctx.fillStyle = `rgba(160,175,195,${shadowAlpha})`;
     puffs.forEach(p => {
       ctx.beginPath();
-      ctx.arc(cx + p.dx, cy + p.dy + sh, p.r, 0, Math.PI*2);
+      ctx.arc(cx + p.dx, cy + p.dy + size*0.07, p.r * 1.02, 0, Math.PI*2);
       ctx.fill();
     });
 
-    // Main white cloud
-    // Outer glow
-    const grad = ctx.createRadialGradient(cx, cy, size*0.1, cx, cy, size*0.75);
-    grad.addColorStop(0, 'rgba(255,255,255,0.95)');
-    grad.addColorStop(1, 'rgba(240,245,250,0.7)');
-    ctx.fillStyle = grad;
-
+    // 2) Main body — radial gradient from bright center to soft edge
     puffs.forEach(p => {
+      const grd = ctx.createRadialGradient(
+        cx+p.dx, cy+p.dy - p.r*0.15, p.r*0.1,
+        cx+p.dx, cy+p.dy, p.r
+      );
+      grd.addColorStop(0, `rgba(${bodyColor},0.97)`);
+      grd.addColorStop(0.6, `rgba(${bodyColor},0.88)`);
+      grd.addColorStop(1, `rgba(${bodyColor},0.65)`);
+      ctx.fillStyle = grd;
       ctx.beginPath();
       ctx.arc(cx + p.dx, cy + p.dy, p.r, 0, Math.PI*2);
       ctx.fill();
     });
 
-    // Bright highlight on top puffs
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    puffs.slice(3, 6).forEach(p => {
+    // 3) Top highlight — bright rim on upper puffs
+    ctx.fillStyle = `rgba(255,255,255,${highlightAlpha})`;
+    puffs.slice(3, 8).forEach(p => {
       ctx.beginPath();
-      ctx.arc(cx + p.dx, cy + p.dy - p.r*0.2, p.r*0.6, 0, Math.PI*2);
+      ctx.arc(cx + p.dx - p.r*0.1, cy + p.dy - p.r*0.25, p.r*0.45, 0, Math.PI*2);
       ctx.fill();
     });
+
+    // 4) Subtle outline on bottom edge for contour definition
+    ctx.strokeStyle = `rgba(140,160,185,${opacity * 0.2})`;
+    ctx.lineWidth = 1.5;
+    // Draw bottom arc of the whole cloud shape
+    ctx.beginPath();
+    ctx.arc(cx, cy + size*0.05, size*0.5, 0.3, Math.PI - 0.3);
+    ctx.stroke();
 
     ctx.restore();
   }
 
-  // Place clouds in a pattern that covers the entire screen
-  // Large clouds as base layer
-  const cloudGrid = [];
-  const spacingX = W * 0.22;
-  const spacingY = H * 0.18;
-  const cols = Math.ceil(W / spacingX) + 2;
-  const rows = Math.ceil(H / spacingY) + 2;
-
-  for (let r = -1; r <= rows; r++) {
-    for (let c = -1; c <= cols; c++) {
-      const cx = c * spacingX + (r % 2) * spacingX * 0.5 + (Math.random()-0.5) * spacingX * 0.3;
-      const cy = r * spacingY + (Math.random()-0.5) * spacingY * 0.25;
-      const size = spacingX * (0.6 + Math.random() * 0.5);
-      cloudGrid.push({cx, cy, size});
+  // LAYER 1 — Large back clouds (darker gray, slight blue tint = depth)
+  const L1spacing = W * 0.28;
+  const L1rows = Math.ceil(H / (L1spacing * 0.7)) + 3;
+  const L1cols = Math.ceil(W / L1spacing) + 3;
+  for (let r = -1; r <= L1rows; r++) {
+    for (let c = -1; c <= L1cols; c++) {
+      const cx = c*L1spacing + (r%2)*L1spacing*0.5 + (Math.random()-0.5)*L1spacing*0.4;
+      const cy = r*L1spacing*0.7 + (Math.random()-0.5)*L1spacing*0.3;
+      const size = L1spacing * (0.55 + Math.random()*0.45);
+      drawCloud(cx, cy, size, {
+        opacity: 0.8 + Math.random()*0.15,
+        shadowAlpha: 0.25,
+        bodyColor: '215,225,235',
+        highlightAlpha: 0.25,
+      });
     }
   }
 
-  // Draw back-to-front: larger clouds first, smaller on top
-  cloudGrid.sort((a,b) => b.size - a.size);
-  cloudGrid.forEach(c => drawCloud(c.cx, c.cy, c.size, 0.85 + Math.random()*0.15));
+  // LAYER 2 — Medium clouds (white, main layer)
+  const L2spacing = W * 0.2;
+  const L2rows = Math.ceil(H / (L2spacing * 0.65)) + 3;
+  const L2cols = Math.ceil(W / L2spacing) + 3;
+  for (let r = -1; r <= L2rows; r++) {
+    for (let c = -1; c <= L2cols; c++) {
+      const cx = c*L2spacing + (r%2)*L2spacing*0.5 + (Math.random()-0.5)*L2spacing*0.35;
+      const cy = r*L2spacing*0.65 + (Math.random()-0.5)*L2spacing*0.25;
+      const size = L2spacing * (0.5 + Math.random()*0.5);
+      drawCloud(cx, cy, size, {
+        opacity: 0.88 + Math.random()*0.12,
+        shadowAlpha: 0.3,
+        bodyColor: '245,248,252',
+        highlightAlpha: 0.4,
+      });
+    }
+  }
 
-  // Extra small accent clouds for gaps
-  for (let i = 0; i < 20; i++) {
+  // LAYER 3 — Small bright foreground clouds (clearly visible contours, overlapping)
+  const L3spacing = W * 0.15;
+  const L3rows = Math.ceil(H / (L3spacing * 0.6)) + 3;
+  const L3cols = Math.ceil(W / L3spacing) + 3;
+  for (let r = -1; r <= L3rows; r++) {
+    for (let c = -1; c <= L3cols; c++) {
+      const cx = c*L3spacing + (r%2)*L3spacing*0.5 + (Math.random()-0.5)*L3spacing*0.4;
+      const cy = r*L3spacing*0.6 + (Math.random()-0.5)*L3spacing*0.2;
+      const size = L3spacing * (0.4 + Math.random()*0.4);
+      drawCloud(cx, cy, size, {
+        opacity: 0.9 + Math.random()*0.1,
+        shadowAlpha: 0.35,
+        bodyColor: '255,255,255',
+        highlightAlpha: 0.55,
+      });
+    }
+  }
+
+  // LAYER 4 — Scattered accent puffs to fill any remaining gaps
+  for (let i = 0; i < 30; i++) {
     drawCloud(
       Math.random() * W,
       Math.random() * H,
-      40 + Math.random() * 60,
-      0.7 + Math.random() * 0.3
+      35 + Math.random() * 55,
+      { opacity: 0.85, shadowAlpha: 0.3, bodyColor: '255,255,255', highlightAlpha: 0.5 }
     );
   }
 
-  // Branding text with shadow
+  // Branding text
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.shadowColor = 'rgba(0,0,0,0.25)';
-  ctx.shadowBlur = 8;
+  ctx.shadowColor = 'rgba(0,0,0,0.2)';
+  ctx.shadowBlur = 10;
   ctx.shadowOffsetY = 2;
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
   ctx.font = `bold ${Math.min(W*0.055,24)}px sans-serif`;
   ctx.fillText('CAMBIA IL CLIMA DELLA TUA VITA', W/2, H/2 - 18);
   ctx.font = `bold ${Math.min(W*0.04,17)}px sans-serif`;
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.fillText('SUPER WIN FOR LIFE', W/2, H/2 + 18);
   ctx.restore();
 }
@@ -843,6 +1049,7 @@ function collectRainbow(rb) {
   rb.userData.collected = true;
   rainbowsFound++;
   if (navigator.vibrate) navigator.vibrate(50);
+  playCollect();
   updateCounter();
 
   // Update B&W → color: each rainbow restores 1/TOTAL of color
@@ -877,6 +1084,7 @@ function updateCounter() {
 
 function onAllCollected() {
   document.getElementById('ar-info').textContent = '🎉 Li hai trovati tutti!';
+  playFinal();
 
   // Phase 1: AR confetti celebration (3D particles in scene) — 6 seconds
   spawnARConfetti();
@@ -933,32 +1141,6 @@ function spawnARConfetti() {
     }, 7000);
   }
 
-  // Also spawn big rainbow arcs above
-  for (let i = 0; i < 3; i++) {
-    const bigRainbow = createRainbow(3 + Math.random() * 2);
-    const angle = (i / 3) * Math.PI * 2;
-    bigRainbow.position.set(
-      Math.sin(angle) * 2,
-      3 + i * 0.5,
-      -Math.cos(angle) * 2
-    );
-    bigRainbow.rotation.y = angle;
-    bigRainbow.scale.set(0.01,0.01,0.01);
-    arScene.add(bigRainbow);
-    animateSpawn(bigRainbow, i * 500);
-
-    setTimeout(() => {
-      const start = performance.now();
-      (function fade() {
-        const t = Math.min((performance.now()-start)/1500, 1);
-        bigRainbow.traverse(c=>{
-          if(c.material){c.material.transparent=true;c.material.opacity=Math.max(0,1-t);}
-        });
-        if(t<1) requestAnimationFrame(fade);
-        else { bigRainbow.visible=false; arScene.remove(bigRainbow); }
-      })();
-    }, 5000);
-  }
 }
 
 // ================================================================
@@ -990,9 +1172,9 @@ function showWin() {
 }
 
 // ================================================================
-//  BOOT — Start 8th Wall immediately
+//  BOOT — Intro screen → then 8th Wall starts
 // ================================================================
-function boot() {
+function bootXR() {
   const onxrloaded = () => {
     XR8.addCameraPipelineModules([
       XR8.GlTextureRenderer.pipelineModule(),
@@ -1010,9 +1192,13 @@ function boot() {
   else window.addEventListener('xrloaded', onxrloaded);
 }
 
-// Start everything immediately — no splash, XR boots right away
-// Camera permissions are handled by XRExtras.Loading
-boot();
+// Intro button → init audio (needs user gesture) → start XR → hide intro
+document.getElementById('intro-btn').addEventListener('click', () => {
+  initAudio();
+  playBG();
+  bootXR();
+  document.getElementById('intro').classList.add('hidden');
+});
 </script>
 </body>
 </html>

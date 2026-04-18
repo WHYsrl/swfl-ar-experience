@@ -73,31 +73,550 @@
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const STATE={phase:'splash',cloudsTotal:0,cloudsCleared:0,swipePoints:[],isSwiping:false};let scene,camera,renderer;let clouds=[];let rainbowGroup,rainbowTargetOpacity=0;let particleSystem;const raycaster=new THREE.Raycaster();const pointer=new THREE.Vector2();
-function initThree(){scene=new THREE.Scene();camera=new THREE.PerspectiveCamera(70,window.innerWidth/window.innerHeight,0.1,100);camera.position.set(0,0,5);renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});renderer.setSize(window.innerWidth,window.innerHeight);renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));renderer.setClearColor(0x000000,0);renderer.domElement.id='three-canvas';document.body.insertBefore(renderer.domElement,document.getElementById('swipe-trail'));const a=new THREE.AmbientLight(0xffffff,0.6);scene.add(a);const d=new THREE.DirectionalLight(0xffffff,0.8);d.position.set(2,4,3);scene.add(d);const p=new THREE.PointLight(0xffeedd,0.4,20);p.position.set(-3,2,4);scene.add(p);createRainbow();createClouds();window.addEventListener('resize',onResize);}
-function createCartoonCloud(s=1){const g=new THREE.Group();const m=new THREE.MeshToonMaterial({color:0xf0f0f0,transparent:true,opacity:1});[{r:.5,x:0,y:0,z:0},{r:.4,x:-.45,y:-.05,z:.1},{r:.45,x:.5,y:0,z:-.05},{r:.35,x:-.2,y:.25,z:.05},{r:.38,x:.25,y:.22,z:-.1},{r:.3,x:-.6,y:-.15,z:0},{r:.32,x:.7,y:-.1,z:.05}].forEach(c=>{const geo=new THREE.SphereGeometry(c.r*s,12,10);const mesh=new THREE.Mesh(geo,m.clone());mesh.position.set(c.x*s,c.y*s,c.z*s);g.add(mesh);});const sg=new THREE.PlaneGeometry(1.6*s,0.6*s);const sm=new THREE.MeshBasicMaterial({color:0xcccccc,transparent:true,opacity:0.15,side:THREE.DoubleSide});const sh=new THREE.Mesh(sg,sm);sh.position.set(0,-0.35*s,0);sh.rotation.x=-Math.PI/2;g.add(sh);return g;}
-function createClouds(){const count=14;STATE.cloudsTotal=count;const grays=[0xd0d0d0,0xc8c8c8,0xbababa,0xdcdcdc,0xb0b0b0];for(let i=0;i<count;i++){const scale=0.6+Math.random()*0.7;const cloud=createCartoonCloud(scale);const angle=(i/count)*Math.PI*2+Math.random()*0.5;const radius=0.8+Math.random()*2.8;cloud.position.set(Math.cos(angle)*radius*1.2,Math.sin(angle)*radius*0.7+0.3,-1-Math.random()*2);const tint=grays[Math.floor(Math.random()*grays.length)];cloud.children.forEach(child=>{if(child.material&&child.material.color)child.material.color.setHex(tint);});cloud.userData={cleared:false,originalY:cloud.position.y,bobSpeed:0.3+Math.random()*0.4,bobAmp:0.03+Math.random()*0.04,driftSpeed:0.05+Math.random()*0.1,phase:Math.random()*Math.PI*2,dissolving:false,dissolveProgress:0};const bbox=new THREE.Box3().setFromObject(cloud);const center=new THREE.Vector3();bbox.getCenter(center);const bsphere=bbox.getBoundingSphere(new THREE.Sphere());cloud.userData.boundingSphere=bsphere;scene.add(cloud);clouds.push(cloud);}}
-function createRainbow(){rainbowGroup=new THREE.Group();const colors=[0xff0000,0xff8800,0xffff00,0x00cc00,0x0066ff,0x4400cc,0x8800ff];const baseRadius=2.5;colors.forEach((color,i)=>{const radius=baseRadius-i*0.12;const geo=new THREE.TorusGeometry(radius,0.07,8,64,Math.PI);const mat=new THREE.MeshToonMaterial({color:color,transparent:true,opacity:0,side:THREE.DoubleSide});const torus=new THREE.Mesh(geo,mat);torus.rotation.z=0;rainbowGroup.add(torus);});rainbowGroup.position.set(0,-1.8,-3);scene.add(rainbowGroup);}
-function createSparkles(){const count=200;const geometry=new THREE.BufferGeometry();const positions=new Float32Array(count*3);const velocities=[];for(let i=0;i<count;i++){positions[i*3]=(Math.random()-0.5)*8;positions[i*3+1]=(Math.random()-0.5)*6;positions[i*3+2]=-1-Math.random()*3;velocities.push({x:(Math.random()-0.5)*0.02,y:Math.random()*0.02+0.005,z:0});}geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));const material=new THREE.PointsMaterial({color:0xffee88,size:0.06,transparent:true,opacity:0,blending:THREE.AdditiveBlending});particleSystem=new THREE.Points(geometry,material);particleSystem.userData.velocities=velocities;scene.add(particleSystem);}
-async function startCamera(){try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});const video=document.getElementById('camera-video');video.srcObject=stream;await video.play();return true;}catch(e){console.warn('Camera not available',e);document.getElementById('camera-video').style.background='linear-gradient(180deg, #87CEEB 0%, #b0e0e6 40%, #e0f0ff 100%)';return false;}}
-const swipeTrail=document.getElementById('swipe-trail');let trailLines=[];
-function onPointerDown(e){if(STATE.phase!=='playing')return;STATE.isSwiping=true;STATE.swipePoints=[getPointerPos(e)];}
-function onPointerMove(e){if(!STATE.isSwiping||STATE.phase!=='playing')return;e.preventDefault();const pos=getPointerPos(e);STATE.swipePoints.push(pos);if(STATE.swipePoints.length>12)STATE.swipePoints.shift();drawSwipeTrail();checkSwipeHits(pos);}
-function onPointerUp(){STATE.isSwiping=false;STATE.swipePoints=[];swipeTrail.innerHTML='';trailLines=[];}
-function getPointerPos(e){const touch=e.touches?e.touches[0]:e;return{x:touch.clientX,y:touch.clientY};}
-function drawSwipeTrail(){swipeTrail.innerHTML='';const pts=STATE.swipePoints;for(let i=1;i<pts.length;i++){const opacity=i/pts.length;const line=document.createElementNS('http://www.w3.org/2000/svg','line');line.setAttribute('x1',pts[i-1].x);line.setAttribute('y1',pts[i-1].y);line.setAttribute('x2',pts[i].x);line.setAttribute('y2',pts[i].y);line.style.stroke=`rgba(255, 230, 100, ${opacity*0.8})`;line.style.strokeWidth=2+opacity*4;swipeTrail.appendChild(line);}}
-function checkSwipeHits(pos){pointer.x=(pos.x/window.innerWidth)*2-1;pointer.y=-(pos.y/window.innerHeight)*2+1;raycaster.setFromCamera(pointer,camera);clouds.forEach(cloud=>{if(cloud.userData.cleared||cloud.userData.dissolving)return;const hits=raycaster.intersectObjects(cloud.children,true);if(hits.length>0)clearCloud(cloud);});}
-function clearCloud(cloud){cloud.userData.dissolving=true;cloud.userData.cleared=true;STATE.cloudsCleared++;spawnBurstAt(cloud.position);updateProgress();if(STATE.cloudsCleared>=STATE.cloudsTotal)setTimeout(()=>triggerWin(),800);}
-function spawnBurstAt(position){for(let i=0;i<8;i++){const geo=new THREE.SphereGeometry(0.04,6,6);const mat=new THREE.MeshBasicMaterial({color:new THREE.Color().setHSL(Math.random(),0.8,0.6),transparent:true,opacity:1});const p=new THREE.Mesh(geo,mat);p.position.copy(position);p.userData.velocity=new THREE.Vector3((Math.random()-0.5)*0.15,(Math.random()-0.5)*0.15,(Math.random()-0.5)*0.05);p.userData.life=1.0;scene.add(p);burstParticles.push(p);}}
-const burstParticles=[];
-function updateProgress(){const pct=Math.round((STATE.cloudsCleared/STATE.cloudsTotal)*100);document.getElementById('score').textContent=pct+'%';document.getElementById('progress-fill').style.width=pct+'%';rainbowTargetOpacity=STATE.cloudsCleared/STATE.cloudsTotal;}
-function triggerWin(){STATE.phase='won';document.getElementById('swipe-hint').style.display='none';rainbowTargetOpacity=1;setTimeout(()=>{document.getElementById('win-screen').classList.add('visible');startConfetti();},1200);}
-function startConfetti(){const canvas=document.getElementById('confetti-canvas');const ctx=canvas.getContext('2d');canvas.width=window.innerWidth;canvas.height=window.innerHeight;const confetti=[];const colors=['#ff0000','#ff8800','#ffff00','#00cc00','#0066ff','#8800ff','#ff69b4','#ffd700'];for(let i=0;i<150;i++){confetti.push({x:Math.random()*canvas.width,y:-20-Math.random()*canvas.height,w:6+Math.random()*8,h:4+Math.random()*4,color:colors[Math.floor(Math.random()*colors.length)],vy:1.5+Math.random()*3,vx:(Math.random()-0.5)*2,rot:Math.random()*Math.PI*2,rotSpeed:(Math.random()-0.5)*0.2});}function animateConfetti(){ctx.clearRect(0,0,canvas.width,canvas.height);confetti.forEach(c=>{c.x+=c.vx;c.y+=c.vy;c.rot+=c.rotSpeed;if(c.y>canvas.height+20){c.y=-20;c.x=Math.random()*canvas.width;}ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.rot);ctx.fillStyle=c.color;ctx.fillRect(-c.w/2,-c.h/2,c.w,c.h);ctx.restore();});requestAnimationFrame(animateConfetti);}animateConfetti();}
-const clock=new THREE.Clock();
-function animate(){requestAnimationFrame(animate);const t=clock.getElapsedTime();const dt=clock.getDelta();clouds.forEach(cloud=>{const ud=cloud.userData;if(ud.dissolving){ud.dissolveProgress+=0.03;const p=ud.dissolveProgress;cloud.children.forEach(child=>{if(child.material)child.material.opacity=Math.max(0,1-p);child.position.multiplyScalar(1.02);});cloud.position.y+=0.03;cloud.scale.multiplyScalar(0.98);if(p>=1)scene.remove(cloud);}else{cloud.position.y=ud.originalY+Math.sin(t*ud.bobSpeed+ud.phase)*ud.bobAmp;cloud.position.x+=Math.sin(t*ud.driftSpeed+ud.phase)*0.0005;}});if(rainbowGroup){rainbowGroup.children.forEach((torus,i)=>{const target=rainbowTargetOpacity;const current=torus.material.opacity;torus.material.opacity+=(target-current)*0.03;if(target>0.5){const s=1+Math.sin(t*1.5+i*0.3)*0.01;torus.scale.set(s,s,1);}});}if(particleSystem){const targetOpacity=rainbowTargetOpacity>0.3?rainbowTargetOpacity*0.6:0;particleSystem.material.opacity+=(targetOpacity-particleSystem.material.opacity)*0.02;const positions=particleSystem.geometry.attributes.position.array;const vels=particleSystem.userData.velocities;for(let i=0;i<vels.length;i++){positions[i*3]+=vels[i].x;positions[i*3+1]+=vels[i].y;if(positions[i*3+1]>4)positions[i*3+1]=-3;if(positions[i*3]>5)positions[i*3]=-5;if(positions[i*3]<-5)positions[i*3]=5;}particleSystem.geometry.attributes.position.needsUpdate=true;}for(let i=burstParticles.length-1;i>=0;i--){const p=burstParticles[i];p.position.add(p.userData.velocity);p.userData.velocity.y-=0.003;p.userData.life-=0.025;p.material.opacity=Math.max(0,p.userData.life);if(p.userData.life<=0){scene.remove(p);burstParticles.splice(i,1);}}renderer.render(scene,camera);}
-function onResize(){camera.aspect=window.innerWidth/window.innerHeight;camera.updateProjectionMatrix();renderer.setSize(window.innerWidth,window.innerHeight);}
-document.getElementById('start-btn').addEventListener('click',async()=>{initThree();createSparkles();await startCamera();document.getElementById('splash-screen').classList.add('hidden');setTimeout(()=>{document.getElementById('splash-screen').style.display='none';},800);document.getElementById('top-bar').style.display='flex';document.getElementById('swipe-hint').style.display='block';setTimeout(()=>{const hint=document.getElementById('swipe-hint');if(hint)hint.style.transition='opacity 1s';if(hint)hint.style.opacity='0';setTimeout(()=>{if(hint)hint.style.display='none';},1000);},4000);STATE.phase='playing';const canvas=renderer.domElement;canvas.addEventListener('mousedown',onPointerDown);canvas.addEventListener('mousemove',onPointerMove);canvas.addEventListener('mouseup',onPointerUp);canvas.addEventListener('touchstart',onPointerDown,{passive:false});canvas.addEventListener('touchmove',onPointerMove,{passive:false});canvas.addEventListener('touchend',onPointerUp);animate();});
-document.getElementById('cta-btn').addEventListener('click',()=>{alert('Grazie per aver giocato!\nMostra questo schermo al punto vendita per ritirare il tuo gadget!');});
+// ─── GLOBALS ────────────────────────────────────────────────────────
+const STATE = {
+  phase: 'splash',
+  cloudsTotal: 0,
+  cloudsCleared: 0,
+  swipePoints: [],
+  isSwiping: false,
+};
+
+let scene, camera, renderer;
+let clouds = [];
+let rainbowGroup, rainbowTargetOpacity = 0;
+let rainbowGlowGroup;
+let particleSystem;
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const burstParticles = [];
+
+// ─── THREE.JS SETUP ─────────────────────────────────────────────────
+function initThree() {
+  scene = new THREE.Scene();
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 0, 5);
+
+  renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x000000, 0);
+  renderer.domElement.id = 'three-canvas';
+  document.body.insertBefore(renderer.domElement, document.getElementById('swipe-trail'));
+
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(2, 4, 3);
+  scene.add(dirLight);
+
+  const pointLight = new THREE.PointLight(0xffeedd, 0.4, 20);
+  pointLight.position.set(-3, 2, 4);
+  scene.add(pointLight);
+
+  // Create 3D rainbow anchored in space (behind clouds)
+  createRainbow3D();
+
+  // Create clouds (in front of rainbow)
+  createClouds();
+
+  window.addEventListener('resize', onResize);
+}
+
+// ─── 3D RAINBOW — REAL OBJECT IN SPACE ──────────────────────────────
+function createRainbow3D() {
+  rainbowGroup = new THREE.Group();
+  rainbowGlowGroup = new THREE.Group();
+
+  const colors = [
+    { hex: 0xff0000, emissive: 0x660000 }, // red
+    { hex: 0xff6600, emissive: 0x662200 }, // orange
+    { hex: 0xffdd00, emissive: 0x665500 }, // yellow
+    { hex: 0x00cc44, emissive: 0x005511 }, // green
+    { hex: 0x0088ff, emissive: 0x003366 }, // blue
+    { hex: 0x4400cc, emissive: 0x220066 }, // indigo
+    { hex: 0x9900ff, emissive: 0x440066 }, // violet
+  ];
+
+  const baseRadius = 3.5;
+  const bandSpacing = 0.22;
+  const tubeRadius = 0.10;
+  const tubularSegments = 128;
+  const radialSegments = 16;
+
+  colors.forEach((col, i) => {
+    const radius = baseRadius - i * bandSpacing;
+
+    // Main solid band
+    const geo = new THREE.TorusGeometry(radius, tubeRadius, radialSegments, tubularSegments, Math.PI);
+    const mat = new THREE.MeshStandardMaterial({
+      color: col.hex,
+      emissive: col.emissive,
+      emissiveIntensity: 0.3,
+      metalness: 0.1,
+      roughness: 0.4,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+    });
+    const torus = new THREE.Mesh(geo, mat);
+    rainbowGroup.add(torus);
+
+    // Outer glow band (slightly larger, more transparent)
+    const glowGeo = new THREE.TorusGeometry(radius, tubeRadius * 2.5, 8, tubularSegments, Math.PI);
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: col.hex,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const glowTorus = new THREE.Mesh(glowGeo, glowMat);
+    rainbowGlowGroup.add(glowTorus);
+  });
+
+  // Position the rainbow as a real 3D object anchored in space:
+  // - far behind the clouds (z = -8)
+  // - base touching the "ground" (y offset)
+  // - tilted slightly toward the viewer for depth
+  rainbowGroup.position.set(0, -2.0, -8);
+  rainbowGroup.rotation.x = -0.15; // slight tilt back
+  rainbowGroup.scale.set(1.2, 1.2, 1.2);
+
+  rainbowGlowGroup.position.copy(rainbowGroup.position);
+  rainbowGlowGroup.rotation.copy(rainbowGroup.rotation);
+  rainbowGlowGroup.scale.copy(rainbowGroup.scale);
+
+  scene.add(rainbowGroup);
+  scene.add(rainbowGlowGroup);
+}
+
+// ─── CLOUD CREATION ─────────────────────────────────────────────────
+function createCartoonCloud(s) {
+  s = s || 1;
+  var g = new THREE.Group();
+  var m = new THREE.MeshToonMaterial({ color: 0xf0f0f0, transparent: true, opacity: 1 });
+
+  var configs = [
+    { r: 0.5, x: 0, y: 0, z: 0 },
+    { r: 0.4, x: -0.45, y: -0.05, z: 0.1 },
+    { r: 0.45, x: 0.5, y: 0, z: -0.05 },
+    { r: 0.35, x: -0.2, y: 0.25, z: 0.05 },
+    { r: 0.38, x: 0.25, y: 0.22, z: -0.1 },
+    { r: 0.3, x: -0.6, y: -0.15, z: 0 },
+    { r: 0.32, x: 0.7, y: -0.1, z: 0.05 },
+  ];
+
+  configs.forEach(function(c) {
+    var geo = new THREE.SphereGeometry(c.r * s, 12, 10);
+    var mesh = new THREE.Mesh(geo, m.clone());
+    mesh.position.set(c.x * s, c.y * s, c.z * s);
+    g.add(mesh);
+  });
+
+  // Shadow underneath
+  var sg = new THREE.PlaneGeometry(1.6 * s, 0.6 * s);
+  var sm = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
+  var sh = new THREE.Mesh(sg, sm);
+  sh.position.set(0, -0.35 * s, 0);
+  sh.rotation.x = -Math.PI / 2;
+  g.add(sh);
+
+  return g;
+}
+
+function createClouds() {
+  var count = 14;
+  STATE.cloudsTotal = count;
+
+  var grays = [0xd0d0d0, 0xc8c8c8, 0xbababa, 0xdcdcdc, 0xb0b0b0];
+
+  for (var i = 0; i < count; i++) {
+    var scale = 0.6 + Math.random() * 0.7;
+    var cloud = createCartoonCloud(scale);
+
+    // Spread clouds in front of the rainbow (z: -1 to -3)
+    var angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+    var radius = 0.8 + Math.random() * 2.8;
+    cloud.position.set(
+      Math.cos(angle) * radius * 1.2,
+      Math.sin(angle) * radius * 0.7 + 0.3,
+      -1 - Math.random() * 2
+    );
+
+    var tint = grays[Math.floor(Math.random() * grays.length)];
+    cloud.children.forEach(function(child) {
+      if (child.material && child.material.color) child.material.color.setHex(tint);
+    });
+
+    cloud.userData = {
+      cleared: false,
+      originalY: cloud.position.y,
+      bobSpeed: 0.3 + Math.random() * 0.4,
+      bobAmp: 0.03 + Math.random() * 0.04,
+      driftSpeed: 0.05 + Math.random() * 0.1,
+      phase: Math.random() * Math.PI * 2,
+      dissolving: false,
+      dissolveProgress: 0,
+    };
+
+    scene.add(cloud);
+    clouds.push(cloud);
+  }
+}
+
+// ─── SPARKLE PARTICLES ──────────────────────────────────────────────
+function createSparkles() {
+  var count = 200;
+  var geometry = new THREE.BufferGeometry();
+  var positions = new Float32Array(count * 3);
+  var velocities = [];
+
+  for (var i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 8;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 6;
+    positions[i * 3 + 2] = -2 - Math.random() * 5;
+    velocities.push({
+      x: (Math.random() - 0.5) * 0.02,
+      y: Math.random() * 0.02 + 0.005,
+      z: 0,
+    });
+  }
+
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+  var material = new THREE.PointsMaterial({
+    color: 0xffee88,
+    size: 0.06,
+    transparent: true,
+    opacity: 0,
+    blending: THREE.AdditiveBlending,
+  });
+
+  particleSystem = new THREE.Points(geometry, material);
+  particleSystem.userData.velocities = velocities;
+  scene.add(particleSystem);
+}
+
+// ─── CAMERA ─────────────────────────────────────────────────────────
+async function startCamera() {
+  try {
+    var stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    var video = document.getElementById('camera-video');
+    video.srcObject = stream;
+    await video.play();
+    return true;
+  } catch (e) {
+    console.warn('Camera not available', e);
+    document.getElementById('camera-video').style.background =
+      'linear-gradient(180deg, #87CEEB 0%, #b0e0e6 40%, #e0f0ff 100%)';
+    return false;
+  }
+}
+
+// ─── SWIPE MECHANICS ────────────────────────────────────────────────
+var swipeTrail = document.getElementById('swipe-trail');
+var trailLines = [];
+
+function onPointerDown(e) {
+  if (STATE.phase !== 'playing') return;
+  STATE.isSwiping = true;
+  STATE.swipePoints = [getPointerPos(e)];
+}
+
+function onPointerMove(e) {
+  if (!STATE.isSwiping || STATE.phase !== 'playing') return;
+  e.preventDefault();
+
+  var pos = getPointerPos(e);
+  STATE.swipePoints.push(pos);
+  if (STATE.swipePoints.length > 12) STATE.swipePoints.shift();
+
+  drawSwipeTrail();
+  checkSwipeHits(pos);
+}
+
+function onPointerUp() {
+  STATE.isSwiping = false;
+  STATE.swipePoints = [];
+  swipeTrail.innerHTML = '';
+  trailLines = [];
+}
+
+function getPointerPos(e) {
+  var touch = e.touches ? e.touches[0] : e;
+  return { x: touch.clientX, y: touch.clientY };
+}
+
+function drawSwipeTrail() {
+  swipeTrail.innerHTML = '';
+  var pts = STATE.swipePoints;
+  for (var i = 1; i < pts.length; i++) {
+    var opacity = i / pts.length;
+    var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', pts[i - 1].x);
+    line.setAttribute('y1', pts[i - 1].y);
+    line.setAttribute('x2', pts[i].x);
+    line.setAttribute('y2', pts[i].y);
+    line.style.stroke = 'rgba(255, 230, 100, ' + (opacity * 0.8) + ')';
+    line.style.strokeWidth = 2 + opacity * 4;
+    swipeTrail.appendChild(line);
+  }
+}
+
+function checkSwipeHits(pos) {
+  pointer.x = (pos.x / window.innerWidth) * 2 - 1;
+  pointer.y = -(pos.y / window.innerHeight) * 2 + 1;
+
+  raycaster.setFromCamera(pointer, camera);
+
+  clouds.forEach(function(cloud) {
+    if (cloud.userData.cleared || cloud.userData.dissolving) return;
+    var hits = raycaster.intersectObjects(cloud.children, true);
+    if (hits.length > 0) clearCloud(cloud);
+  });
+}
+
+function clearCloud(cloud) {
+  cloud.userData.dissolving = true;
+  cloud.userData.cleared = true;
+  STATE.cloudsCleared++;
+  spawnBurstAt(cloud.position);
+  updateProgress();
+  if (STATE.cloudsCleared >= STATE.cloudsTotal) {
+    setTimeout(function() { triggerWin(); }, 800);
+  }
+}
+
+function spawnBurstAt(position) {
+  for (var i = 0; i < 8; i++) {
+    var geo = new THREE.SphereGeometry(0.04, 6, 6);
+    var mat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color().setHSL(Math.random(), 0.8, 0.6),
+      transparent: true, opacity: 1,
+    });
+    var p = new THREE.Mesh(geo, mat);
+    p.position.copy(position);
+    p.userData.velocity = new THREE.Vector3(
+      (Math.random() - 0.5) * 0.15,
+      (Math.random() - 0.5) * 0.15,
+      (Math.random() - 0.5) * 0.05
+    );
+    p.userData.life = 1.0;
+    scene.add(p);
+    burstParticles.push(p);
+  }
+}
+
+function updateProgress() {
+  var pct = Math.round((STATE.cloudsCleared / STATE.cloudsTotal) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+  rainbowTargetOpacity = STATE.cloudsCleared / STATE.cloudsTotal;
+}
+
+// ─── WIN SEQUENCE ───────────────────────────────────────────────────
+function triggerWin() {
+  STATE.phase = 'won';
+  document.getElementById('swipe-hint').style.display = 'none';
+  rainbowTargetOpacity = 1;
+  setTimeout(function() {
+    document.getElementById('win-screen').classList.add('visible');
+    startConfetti();
+  }, 1500);
+}
+
+// ─── CONFETTI ───────────────────────────────────────────────────────
+function startConfetti() {
+  var canvas = document.getElementById('confetti-canvas');
+  var ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  var confetti = [];
+  var colors = ['#ff0000', '#ff8800', '#ffff00', '#00cc00', '#0066ff', '#8800ff', '#ff69b4', '#ffd700'];
+
+  for (var i = 0; i < 150; i++) {
+    confetti.push({
+      x: Math.random() * canvas.width,
+      y: -20 - Math.random() * canvas.height,
+      w: 6 + Math.random() * 8,
+      h: 4 + Math.random() * 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vy: 1.5 + Math.random() * 3,
+      vx: (Math.random() - 0.5) * 2,
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.2,
+    });
+  }
+
+  function animateConfetti() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    confetti.forEach(function(c) {
+      c.x += c.vx;
+      c.y += c.vy;
+      c.rot += c.rotSpeed;
+      if (c.y > canvas.height + 20) { c.y = -20; c.x = Math.random() * canvas.width; }
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot);
+      ctx.fillStyle = c.color;
+      ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
+      ctx.restore();
+    });
+    requestAnimationFrame(animateConfetti);
+  }
+  animateConfetti();
+}
+
+// ─── ANIMATION LOOP ─────────────────────────────────────────────────
+var clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  var t = clock.getElapsedTime();
+
+  // ── Animate clouds ──
+  clouds.forEach(function(cloud) {
+    var ud = cloud.userData;
+    if (ud.dissolving) {
+      ud.dissolveProgress += 0.03;
+      var p = ud.dissolveProgress;
+      cloud.children.forEach(function(child) {
+        if (child.material) child.material.opacity = Math.max(0, 1 - p);
+        child.position.multiplyScalar(1.02);
+      });
+      cloud.position.y += 0.03;
+      cloud.scale.multiplyScalar(0.98);
+      if (p >= 1) scene.remove(cloud);
+    } else {
+      cloud.position.y = ud.originalY + Math.sin(t * ud.bobSpeed + ud.phase) * ud.bobAmp;
+      cloud.position.x += Math.sin(t * ud.driftSpeed + ud.phase) * 0.0005;
+    }
+  });
+
+  // ── Animate 3D rainbow ──
+  if (rainbowGroup) {
+    rainbowGroup.children.forEach(function(torus, i) {
+      var target = rainbowTargetOpacity;
+      var current = torus.material.opacity;
+      torus.material.opacity += (target - current) * 0.04;
+
+      // Emissive intensity ramps up with reveal
+      torus.material.emissiveIntensity = 0.2 + target * 0.5;
+
+      // Gentle 3D breathing — scale pulsates in all axes when visible
+      if (target > 0.3) {
+        var breath = 1 + Math.sin(t * 1.2 + i * 0.4) * 0.015;
+        torus.scale.set(breath, breath, breath);
+      }
+    });
+
+    // Slow rotation of the whole rainbow around Y — feels anchored in space
+    if (rainbowTargetOpacity > 0.1) {
+      rainbowGroup.rotation.y = Math.sin(t * 0.3) * 0.08;
+    }
+  }
+
+  // ── Animate glow layer ──
+  if (rainbowGlowGroup) {
+    rainbowGlowGroup.children.forEach(function(glow, i) {
+      var glowTarget = rainbowTargetOpacity * 0.15;
+      glow.material.opacity += (glowTarget - glow.material.opacity) * 0.03;
+
+      if (rainbowTargetOpacity > 0.3) {
+        var pulse = 1 + Math.sin(t * 1.8 + i * 0.5) * 0.02;
+        glow.scale.set(pulse, pulse, pulse);
+      }
+    });
+
+    rainbowGlowGroup.rotation.y = rainbowGroup.rotation.y;
+  }
+
+  // ── Animate sparkle particles ──
+  if (particleSystem) {
+    var targetOpacity = rainbowTargetOpacity > 0.3 ? rainbowTargetOpacity * 0.6 : 0;
+    particleSystem.material.opacity += (targetOpacity - particleSystem.material.opacity) * 0.02;
+
+    var positions = particleSystem.geometry.attributes.position.array;
+    var vels = particleSystem.userData.velocities;
+    for (var i = 0; i < vels.length; i++) {
+      positions[i * 3] += vels[i].x;
+      positions[i * 3 + 1] += vels[i].y;
+      if (positions[i * 3 + 1] > 4) positions[i * 3 + 1] = -3;
+      if (positions[i * 3] > 5) positions[i * 3] = -5;
+      if (positions[i * 3] < -5) positions[i * 3] = 5;
+    }
+    particleSystem.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // ── Animate burst particles ──
+  for (var j = burstParticles.length - 1; j >= 0; j--) {
+    var bp = burstParticles[j];
+    bp.position.add(bp.userData.velocity);
+    bp.userData.velocity.y -= 0.003;
+    bp.userData.life -= 0.025;
+    bp.material.opacity = Math.max(0, bp.userData.life);
+    if (bp.userData.life <= 0) {
+      scene.remove(bp);
+      burstParticles.splice(j, 1);
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ─── RESIZE ─────────────────────────────────────────────────────────
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// ─── START GAME ─────────────────────────────────────────────────────
+document.getElementById('start-btn').addEventListener('click', async function() {
+  initThree();
+  createSparkles();
+  await startCamera();
+
+  document.getElementById('splash-screen').classList.add('hidden');
+  setTimeout(function() {
+    document.getElementById('splash-screen').style.display = 'none';
+  }, 800);
+
+  document.getElementById('top-bar').style.display = 'flex';
+  document.getElementById('swipe-hint').style.display = 'block';
+
+  setTimeout(function() {
+    var hint = document.getElementById('swipe-hint');
+    if (hint) hint.style.transition = 'opacity 1s';
+    if (hint) hint.style.opacity = '0';
+    setTimeout(function() { if (hint) hint.style.display = 'none'; }, 1000);
+  }, 4000);
+
+  STATE.phase = 'playing';
+
+  var canvas = renderer.domElement;
+  canvas.addEventListener('mousedown', onPointerDown);
+  canvas.addEventListener('mousemove', onPointerMove);
+  canvas.addEventListener('mouseup', onPointerUp);
+  canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+  canvas.addEventListener('touchmove', onPointerMove, { passive: false });
+  canvas.addEventListener('touchend', onPointerUp);
+
+  animate();
+});
+
+// CTA button
+document.getElementById('cta-btn').addEventListener('click', function() {
+  alert('Grazie per aver giocato!\nMostra questo schermo al punto vendita per ritirare il tuo gadget!');
+});
 </script>
 </body>
 </html>

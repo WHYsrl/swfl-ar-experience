@@ -28,6 +28,8 @@
 
   #camerafeed {
     position:fixed; inset:0; width:100%; height:100%; z-index:0;
+    filter: grayscale(100%);
+    transition: filter 0.8s ease;
   }
 
   /* ---- SCRATCH ---- */
@@ -220,46 +222,102 @@ function initScratch() {
 }
 
 function drawCloudCover(ctx, W, H) {
-  // Semi-transparent so camera peeks through slightly
-  const grad = ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,'rgba(160,185,205,0.88)');
-  grad.addColorStop(0.5,'rgba(185,205,218,0.90)');
-  grad.addColorStop(1,'rgba(200,218,228,0.88)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0,0,W,H);
+  // Transparent base — camera is visible where there are no clouds
+  ctx.clearRect(0, 0, W, H);
 
-  // Dense cloud puffs
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  const gx = Math.ceil(W/45), gy = Math.ceil(H/40);
-  for (let y=-2; y<=gy+2; y++) {
-    for (let x=-2; x<=gx+2; x++) {
-      ctx.globalAlpha = 0.5+Math.random()*0.45;
+  // Helper: draw one cartoon cloud (cluster of overlapping circles)
+  function drawCloud(cx, cy, size, opacity) {
+    ctx.save();
+    ctx.globalAlpha = opacity;
+
+    // Shadow layer
+    ctx.fillStyle = 'rgba(180,195,210,0.4)';
+    const sh = size * 0.08;
+    const puffs = [
+      {dx:0, dy:0, r:size*0.5},
+      {dx:-size*0.35, dy:size*0.05, r:size*0.38},
+      {dx:size*0.38, dy:size*0.03, r:size*0.4},
+      {dx:-size*0.18, dy:-size*0.22, r:size*0.32},
+      {dx:size*0.15, dy:-size*0.25, r:size*0.35},
+      {dx:-size*0.5, dy:size*0.15, r:size*0.28},
+      {dx:size*0.52, dy:size*0.12, r:size*0.3},
+      {dx:0, dy:-size*0.35, r:size*0.28},
+    ];
+
+    puffs.forEach(p => {
       ctx.beginPath();
-      ctx.arc(
-        x*45 + (y%2)*22 + (Math.random()-0.5)*30,
-        y*40 + (Math.random()-0.5)*20,
-        30+Math.random()*28, 0, Math.PI*2);
+      ctx.arc(cx + p.dx, cy + p.dy + sh, p.r, 0, Math.PI*2);
       ctx.fill();
+    });
+
+    // Main white cloud
+    // Outer glow
+    const grad = ctx.createRadialGradient(cx, cy, size*0.1, cx, cy, size*0.75);
+    grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+    grad.addColorStop(1, 'rgba(240,245,250,0.7)');
+    ctx.fillStyle = grad;
+
+    puffs.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(cx + p.dx, cy + p.dy, p.r, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    // Bright highlight on top puffs
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    puffs.slice(3, 6).forEach(p => {
+      ctx.beginPath();
+      ctx.arc(cx + p.dx, cy + p.dy - p.r*0.2, p.r*0.6, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  // Place clouds in a pattern that covers the entire screen
+  // Large clouds as base layer
+  const cloudGrid = [];
+  const spacingX = W * 0.22;
+  const spacingY = H * 0.18;
+  const cols = Math.ceil(W / spacingX) + 2;
+  const rows = Math.ceil(H / spacingY) + 2;
+
+  for (let r = -1; r <= rows; r++) {
+    for (let c = -1; c <= cols; c++) {
+      const cx = c * spacingX + (r % 2) * spacingX * 0.5 + (Math.random()-0.5) * spacingX * 0.3;
+      const cy = r * spacingY + (Math.random()-0.5) * spacingY * 0.25;
+      const size = spacingX * (0.6 + Math.random() * 0.5);
+      cloudGrid.push({cx, cy, size});
     }
   }
-  for (let i=0; i<180; i++) {
-    ctx.globalAlpha = 0.35+Math.random()*0.55;
-    ctx.beginPath();
-    ctx.arc(Math.random()*W, Math.random()*H, 20+Math.random()*40, 0, Math.PI*2);
-    ctx.fill();
-  }
-  ctx.globalAlpha=1;
 
-  // Branding text
+  // Draw back-to-front: larger clouds first, smaller on top
+  cloudGrid.sort((a,b) => b.size - a.size);
+  cloudGrid.forEach(c => drawCloud(c.cx, c.cy, c.size, 0.85 + Math.random()*0.15));
+
+  // Extra small accent clouds for gaps
+  for (let i = 0; i < 20; i++) {
+    drawCloud(
+      Math.random() * W,
+      Math.random() * H,
+      40 + Math.random() * 60,
+      0.7 + Math.random() * 0.3
+    );
+  }
+
+  // Branding text with shadow
   ctx.save();
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  ctx.font = `bold ${Math.min(W*0.05,22)}px sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('CAMBIA IL CLIMA DELLA TUA VITA', W/2, H/2 - 16);
-  ctx.font = `bold ${Math.min(W*0.035,15)}px sans-serif`;
-  ctx.fillStyle = 'rgba(255,255,255,0.45)';
-  ctx.fillText('SUPER WIN FOR LIFE', W/2, H/2 + 16);
+  ctx.shadowColor = 'rgba(0,0,0,0.25)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.font = `bold ${Math.min(W*0.055,24)}px sans-serif`;
+  ctx.fillText('CAMBIA IL CLIMA DELLA TUA VITA', W/2, H/2 - 18);
+  ctx.font = `bold ${Math.min(W*0.04,17)}px sans-serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillText('SUPER WIN FOR LIFE', W/2, H/2 + 18);
   ctx.restore();
 }
 
@@ -390,10 +448,19 @@ function gamePipelineModule() {
       });
 
       // Animate theme elements
+      const dt = 1/60; // approximate frame delta
       themeElements.forEach(el => {
         if (!el.visible) return;
         const ud = el.userData;
-        if (ud.type === 'coin') {
+        if (ud.type === 'ar-confetti') {
+          // Falling + tumbling + swaying
+          el.position.y += ud.velY * dt;
+          el.rotation.x += ud.rotSpeed * dt;
+          el.rotation.z += ud.rotSpeed * 0.7 * dt;
+          el.position.x += Math.sin(time*0.003 + ud.swayPhase) * ud.swayAmp * dt;
+          // Remove if below ground
+          if (el.position.y < -0.5) el.visible = false;
+        } else if (ud.type === 'coin') {
           el.rotation.y += 0.03;
           el.position.y = ud.baseY + Math.sin(time*0.001 + ud.phase) * 0.03;
         } else if (ud.type === 'clover') {
@@ -778,6 +845,9 @@ function collectRainbow(rb) {
   if (navigator.vibrate) navigator.vibrate(50);
   updateCounter();
 
+  // Update B&W → color: each rainbow restores 1/TOTAL of color
+  updateCameraColor();
+
   const start = performance.now();
   (function anim() {
     const t = Math.min((performance.now()-start)/600, 1);
@@ -794,6 +864,12 @@ function collectRainbow(rb) {
   })();
 }
 
+function updateCameraColor() {
+  // Grayscale goes from 100% (0 collected) to 0% (all collected)
+  const pct = Math.max(0, 100 - (rainbowsFound / TOTAL_RAINBOWS) * 100);
+  document.getElementById('camerafeed').style.filter = `grayscale(${pct}%)`;
+}
+
 function updateCounter() {
   document.getElementById('ar-counter').textContent =
     `🌈 ${rainbowsFound} / ${TOTAL_RAINBOWS}`;
@@ -801,33 +877,116 @@ function updateCounter() {
 
 function onAllCollected() {
   document.getElementById('ar-info').textContent = '🎉 Li hai trovati tutti!';
-  setTimeout(showWin, 2000);
+
+  // Phase 1: AR confetti celebration (3D particles in scene) — 6 seconds
+  spawnARConfetti();
+
+  // Phase 2: screen confetti overlay on top — starts at 4s
+  setTimeout(launchScreenConfetti, 4000);
+
+  // Phase 3: win screen after full celebration — 8 seconds total
+  setTimeout(showWin, 8000);
 }
 
 // ================================================================
-//  WIN + CONFETTI
+//  AR CONFETTI (3D particles in the Three.js scene)
 // ================================================================
-function showWin() {
-  launchConfetti();
-  setTimeout(()=>{ document.getElementById('win-screen').classList.add('visible'); }, 500);
+function spawnARConfetti() {
+  if (!arScene) return;
+  const colors = [0xff0000,0xff8800,0xffff00,0x00cc00,0x0088ff,0x8800ff,0xff00ff,0xffd700];
+
+  // 100 confetti pieces falling from above, around the user
+  for (let i = 0; i < 100; i++) {
+    const geo = Math.random() > 0.5
+      ? new THREE.BoxGeometry(0.04, 0.04, 0.005)
+      : new THREE.CircleGeometry(0.025, 6);
+    const mat = new THREE.MeshBasicMaterial({
+      color: colors[Math.floor(Math.random()*colors.length)],
+      side: THREE.DoubleSide,
+    });
+    const piece = new THREE.Mesh(geo, mat);
+
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 0.5 + Math.random() * 3;
+    piece.position.set(
+      Math.sin(angle) * dist,
+      3 + Math.random() * 3,  // start high
+      -Math.cos(angle) * dist
+    );
+    piece.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+
+    piece.userData = {
+      type: 'ar-confetti',
+      velY: -(0.5 + Math.random() * 1.0),     // fall speed
+      rotSpeed: (Math.random()-0.5) * 5,        // tumble
+      swayPhase: Math.random() * Math.PI * 2,
+      swayAmp: 0.2 + Math.random() * 0.3,
+    };
+
+    arScene.add(piece);
+    themeElements.push(piece);
+
+    // Remove after 7 seconds
+    setTimeout(() => {
+      piece.visible = false;
+      arScene.remove(piece);
+    }, 7000);
+  }
+
+  // Also spawn big rainbow arcs above
+  for (let i = 0; i < 3; i++) {
+    const bigRainbow = createRainbow(3 + Math.random() * 2);
+    const angle = (i / 3) * Math.PI * 2;
+    bigRainbow.position.set(
+      Math.sin(angle) * 2,
+      3 + i * 0.5,
+      -Math.cos(angle) * 2
+    );
+    bigRainbow.rotation.y = angle;
+    bigRainbow.scale.set(0.01,0.01,0.01);
+    arScene.add(bigRainbow);
+    animateSpawn(bigRainbow, i * 500);
+
+    setTimeout(() => {
+      const start = performance.now();
+      (function fade() {
+        const t = Math.min((performance.now()-start)/1500, 1);
+        bigRainbow.traverse(c=>{
+          if(c.material){c.material.transparent=true;c.material.opacity=Math.max(0,1-t);}
+        });
+        if(t<1) requestAnimationFrame(fade);
+        else { bigRainbow.visible=false; arScene.remove(bigRainbow); }
+      })();
+    }, 5000);
+  }
 }
 
-function launchConfetti() {
+// ================================================================
+//  SCREEN CONFETTI (2D CSS overlay)
+// ================================================================
+function launchScreenConfetti() {
   const cols=['#ff0000','#ff8800','#ffff00','#00cc00','#0088ff','#8800ff','#ff00ff','#ffd700'];
-  for(let i=0;i<80;i++){
+  for(let i=0;i<120;i++){
     setTimeout(()=>{
       const p=document.createElement('div');
       p.className='confetti';
       p.style.left=Math.random()*100+'vw';
       p.style.background=cols[Math.floor(Math.random()*cols.length)];
-      p.style.width=(6+Math.random()*8)+'px';
-      p.style.height=(6+Math.random()*8)+'px';
+      p.style.width=(6+Math.random()*10)+'px';
+      p.style.height=(6+Math.random()*10)+'px';
       p.style.borderRadius=Math.random()>.5?'50%':'2px';
       p.style.animationDuration=(2+Math.random()*3)+'s';
       document.body.appendChild(p);
       setTimeout(()=>p.remove(),5500);
-    },i*30);
+    },i*25);
   }
+}
+
+// ================================================================
+//  WIN SCREEN
+// ================================================================
+function showWin() {
+  document.getElementById('win-screen').classList.add('visible');
 }
 
 // ================================================================

@@ -7,96 +7,171 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-  #camera-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+
   #three-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; touch-action: none; }
-  #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
-  #ui-overlay > * { pointer-events: auto; }
+
+  /* Fallback camera video (non-XR) */
+  #camera-video { position: fixed; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; display: none; }
+
+  /* DOM Overlay — visible during XR session */
+  #dom-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 10; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  }
+  #dom-overlay > * { pointer-events: auto; }
+
   .top-bar { width: 100%; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
   .score-display { background: rgba(255,255,255,0.9); border-radius: 20px; padding: 8px 18px; font-weight: 700; font-size: 16px; color: #1a1a2e; box-shadow: 0 2px 12px rgba(0,0,0,0.15); }
   .progress-bar-container { flex: 1; margin: 0 16px; height: 8px; background: rgba(255,255,255,0.3); border-radius: 4px; overflow: hidden; }
   .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00cc00, #0066ff, #8800ff); border-radius: 4px; transition: width 0.5s ease; width: 0%; }
+
   .swipe-hint { color: #fff; font-size: 18px; font-weight: 600; text-shadow: 0 2px 8px rgba(0,0,0,0.5); animation: pulse 2s ease-in-out infinite; text-align: center; padding: 0 20px; }
-  @keyframes pulse { 0%, 100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
-  #splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease, transform 0.8s ease; }
+  @keyframes pulse { 0%,100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+
+  /* Splash screen */
+  #splash-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
   #splash-screen.hidden { opacity: 0; transform: scale(1.1); pointer-events: none; }
   .splash-title { font-size: 28px; color: #fff; font-weight: 800; text-align: center; line-height: 1.3; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 2px; }
   .splash-subtitle { font-size: 16px; color: rgba(255,255,255,0.7); text-align: center; margin-bottom: 40px; max-width: 300px; line-height: 1.5; }
-  .splash-rainbow { width: 120px; height: 60px; border-radius: 60px 60px 0 0; margin-bottom: 30px; background: linear-gradient(180deg, #ff0000 0%, #ff0000 14%, #ff8800 14%, #ff8800 28%, #ffff00 28%, #ffff00 42%, #00cc00 42%, #00cc00 57%, #0066ff 57%, #0066ff 71%, #8800ff 71%, #8800ff 85%, transparent 85%); animation: rainbowPulse 3s ease-in-out infinite; }
-  @keyframes rainbowPulse { 0%, 100% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.1); filter: brightness(1.2); } }
-  .start-btn { background: linear-gradient(135deg, #e63946, #f72585); color: #fff; border: none; padding: 16px 48px; font-size: 20px; font-weight: 700; border-radius: 50px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 20px rgba(247,37,133,0.4); transition: transform 0.2s, box-shadow 0.2s; }
+  .splash-rainbow { width: 120px; height: 60px; border-radius: 60px 60px 0 0; margin-bottom: 30px;
+    background: linear-gradient(180deg, #ff0000 0%, #ff0000 14%, #ff8800 14%, #ff8800 28%, #ffff00 28%, #ffff00 42%, #00cc00 42%, #00cc00 57%, #0066ff 57%, #0066ff 71%, #8800ff 71%, #8800ff 85%, transparent 85%);
+    animation: rainbowPulse 3s ease-in-out infinite; }
+  @keyframes rainbowPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+  .start-btn { background: linear-gradient(135deg, #e63946, #f72585); color: #fff; border: none; padding: 16px 48px; font-size: 20px; font-weight: 700; border-radius: 50px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 20px rgba(247,37,133,0.4); }
   .start-btn:active { transform: scale(0.95); }
   .camera-note { color: rgba(255,255,255,0.5); font-size: 12px; margin-top: 16px; text-align: center; }
-  #win-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 50; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); }
+  #xr-status { color: rgba(255,255,255,0.4); font-size: 11px; margin-top: 8px; }
+
+  /* Win screen */
+  #win-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 50;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+  }
   #win-screen.visible { display: flex; animation: fadeIn 0.5s ease; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   .win-logo-container { animation: logoReveal 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; transform: scale(0); }
   @keyframes logoReveal { 0% { transform: scale(0) rotate(-10deg); opacity: 0; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
   .win-logo { width: 280px; padding: 24px; background: #fff; border-radius: 20px; box-shadow: 0 8px 40px rgba(0,0,0,0.3); text-align: center; }
   .win-logo .brand-super { font-size: 18px; color: #e63946; font-weight: 700; }
-  .win-logo .brand-win { font-size: 42px; font-weight: 900; line-height: 1; background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00cc00, #0066ff, #8800ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+  .win-logo .brand-win { font-size: 42px; font-weight: 900; line-height: 1;
+    background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00cc00, #0066ff, #8800ff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
   .win-logo .brand-for { font-size: 20px; color: #666; font-weight: 400; margin: 0 4px; }
   .win-logo .brand-life { font-size: 42px; font-weight: 900; color: #00a651; }
   .win-logo .brand-line { display: flex; align-items: baseline; justify-content: center; gap: 2px; }
-  .win-message { color: #fff; font-size: 18px; font-weight: 600; margin-top: 24px; text-align: center; animation: fadeIn 1s ease 0.5s both; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+  .win-message { color: #fff; font-size: 18px; font-weight: 600; margin-top: 24px; text-align: center; text-shadow: 0 2px 8px rgba(0,0,0,0.5); animation: fadeIn 1s ease 0.5s both; }
   .win-sub { color: rgba(255,255,255,0.8); font-size: 14px; margin-top: 8px; text-align: center; animation: fadeIn 1s ease 0.8s both; }
-  .cta-btn { margin-top: 32px; background: linear-gradient(135deg, #00a651, #00c853); color: #fff; border: none; padding: 16px 40px; font-size: 18px; font-weight: 700; border-radius: 50px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 20px rgba(0,166,81,0.4); animation: fadeIn 1s ease 1s both; transition: transform 0.2s; }
+  .cta-btn { margin-top: 32px; background: linear-gradient(135deg, #00a651, #00c853); color: #fff; border: none; padding: 16px 40px; font-size: 18px; font-weight: 700; border-radius: 50px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 20px rgba(0,166,81,0.4); animation: fadeIn 1s ease 1s both; }
   .cta-btn:active { transform: scale(0.95); }
   .confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 45; pointer-events: none; }
+
+  /* Swipe trail */
   #swipe-trail { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
   #swipe-trail line { stroke: rgba(255,255,255,0.6); stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(255,200,50,0.8)); }
+
+  /* Reticle for hit-test */
+  .reticle-msg { color: #fff; font-size: 14px; text-shadow: 0 1px 4px rgba(0,0,0,0.7); text-align: center; padding: 0 20px; }
 </style>
 </head>
 <body>
+
 <video id="camera-video" autoplay playsinline muted></video>
 <svg id="swipe-trail"></svg>
-<div id="ui-overlay">
+
+<div id="dom-overlay">
   <div class="top-bar" id="top-bar" style="display:none;">
     <div class="score-display" id="score">0%</div>
     <div class="progress-bar-container"><div class="progress-bar-fill" id="progress-fill"></div></div>
   </div>
-  <div class="swipe-hint" id="swipe-hint" style="display:none;">&#9729; Spazza via le nuvole! &#9729;<br><span style="font-size:14px; font-weight:400;">Fai swipe sullo schermo</span></div>
+  <div class="swipe-hint" id="swipe-hint" style="display:none;">
+    &#9729; Spazza via le nuvole! &#9729;<br>
+    <span style="font-size:14px; font-weight:400;">Fai swipe sullo schermo</span>
+  </div>
+  <div class="reticle-msg" id="reticle-msg" style="display:none;">
+    Punta il telefono verso il pavimento per ancorare la scena
+  </div>
   <div style="height:60px;"></div>
 </div>
+
 <div id="splash-screen">
   <div class="splash-rainbow"></div>
   <div class="splash-title">Cambia il Clima<br>della Tua Vita</div>
   <div class="splash-subtitle">Spazza via le nuvole grigie e fai spuntare l'arcobaleno! Un'esperienza in realt&agrave; aumentata.</div>
   <button class="start-btn" id="start-btn">GIOCA ORA</button>
   <div class="camera-note">Sar&agrave; richiesto l'accesso alla fotocamera</div>
+  <div id="xr-status"></div>
 </div>
+
 <div id="win-screen">
   <canvas class="confetti-canvas" id="confetti-canvas"></canvas>
-  <div class="win-logo-container"><div class="win-logo"><div class="brand-super">super</div><div class="brand-line"><span class="brand-win">Win</span><span class="brand-for">for</span><span class="brand-life">Life</span></div></div></div>
+  <div class="win-logo-container"><div class="win-logo">
+    <div class="brand-super">super</div>
+    <div class="brand-line"><span class="brand-win">Win</span><span class="brand-for">for</span><span class="brand-life">Life</span></div>
+  </div></div>
   <div class="win-message">Hai cambiato il clima! &#127752;</div>
   <div class="win-sub">Entra nello store e ritira il tuo gadget!</div>
   <button class="cta-btn" id="cta-btn">ENTRA NELLO STORE &rarr;</button>
 </div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ─── GLOBALS ────────────────────────────────────────────────────────
-const STATE = {
-  phase: 'splash',
+// ═══════════════════════════════════════════════════════════════════
+// GLOBALS
+// ═══════════════════════════════════════════════════════════════════
+var STATE = {
+  phase: 'splash',    // splash | placing | playing | won
   cloudsTotal: 0,
   cloudsCleared: 0,
   swipePoints: [],
   isSwiping: false,
+  xrSupported: false,
+  xrMode: false,       // true when running inside WebXR session
+  sceneAnchored: false, // true after user taps to place
 };
 
-let scene, camera, renderer;
-let clouds = [];
-let rainbowGroup, rainbowTargetOpacity = 0;
-let rainbowGlowGroup;
-let particleSystem;
-const raycaster = new THREE.Raycaster();
-const pointer = new THREE.Vector2();
-const burstParticles = [];
+var scene, camera, renderer;
+var clouds = [];
+var rainbowGroup, rainbowGlowGroup, rainbowTargetOpacity = 0;
+var particleSystem;
+var sceneRoot; // parent group — moved to anchor position in XR
+var reticleMesh, hitTestSource = null, hitTestSourceRequested = false;
+var xrSession = null;
 
-// ─── THREE.JS SETUP ─────────────────────────────────────────────────
+var raycaster = new THREE.Raycaster();
+var pointer = new THREE.Vector2();
+var burstParticles = [];
+var clock = new THREE.Clock();
+
+// ═══════════════════════════════════════════════════════════════════
+// CHECK WEBXR SUPPORT
+// ═══════════════════════════════════════════════════════════════════
+(async function checkXR() {
+  if (navigator.xr) {
+    try {
+      STATE.xrSupported = await navigator.xr.isSessionSupported('immersive-ar');
+    } catch (e) { STATE.xrSupported = false; }
+  }
+  var statusEl = document.getElementById('xr-status');
+  statusEl.textContent = STATE.xrSupported
+    ? 'WebXR AR disponibile — esperienza immersiva'
+    : 'Modalit\u00e0 fotocamera (WebXR AR non supportato su questo device)';
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════════════════════════
 function initThree() {
   scene = new THREE.Scene();
 
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 0, 5);
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 100);
+  camera.position.set(0, 1.6, 3); // only used in non-XR fallback
 
   renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -105,54 +180,69 @@ function initThree() {
   renderer.domElement.id = 'three-canvas';
   document.body.insertBefore(renderer.domElement, document.getElementById('swipe-trail'));
 
-  // Lighting
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-  scene.add(ambientLight);
+  // Enable XR
+  renderer.xr.enabled = true;
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(2, 4, 3);
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+  var dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+  dirLight.position.set(2, 5, 3);
   scene.add(dirLight);
 
-  const pointLight = new THREE.PointLight(0xffeedd, 0.4, 20);
-  pointLight.position.set(-3, 2, 4);
-  scene.add(pointLight);
+  // Scene root — everything attaches here; in XR mode we move this to the anchor point
+  sceneRoot = new THREE.Group();
+  scene.add(sceneRoot);
 
-  // Create 3D rainbow anchored in space (behind clouds)
+  // Build content
   createRainbow3D();
-
-  // Create clouds (in front of rainbow)
   createClouds();
+  createSparkles();
+
+  // Reticle for hit-test placement
+  createReticle();
 
   window.addEventListener('resize', onResize);
 }
 
-// ─── 3D RAINBOW — REAL OBJECT IN SPACE ──────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// RETICLE (hit-test indicator)
+// ═══════════════════════════════════════════════════════════════════
+function createReticle() {
+  var ringGeo = new THREE.RingGeometry(0.08, 0.11, 32).rotateX(-Math.PI / 2);
+  var ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+  reticleMesh = new THREE.Mesh(ringGeo, ringMat);
+  reticleMesh.visible = false;
+  reticleMesh.matrixAutoUpdate = false;
+  scene.add(reticleMesh);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 3D RAINBOW — REAL VOLUMETRIC OBJECT
+// ═══════════════════════════════════════════════════════════════════
 function createRainbow3D() {
   rainbowGroup = new THREE.Group();
   rainbowGlowGroup = new THREE.Group();
 
-  const colors = [
-    { hex: 0xff0000, emissive: 0x660000 }, // red
-    { hex: 0xff6600, emissive: 0x662200 }, // orange
-    { hex: 0xffdd00, emissive: 0x665500 }, // yellow
-    { hex: 0x00cc44, emissive: 0x005511 }, // green
-    { hex: 0x0088ff, emissive: 0x003366 }, // blue
-    { hex: 0x4400cc, emissive: 0x220066 }, // indigo
-    { hex: 0x9900ff, emissive: 0x440066 }, // violet
+  var colors = [
+    { hex: 0xff0000, emissive: 0x660000 },
+    { hex: 0xff6600, emissive: 0x662200 },
+    { hex: 0xffdd00, emissive: 0x665500 },
+    { hex: 0x00cc44, emissive: 0x005511 },
+    { hex: 0x0088ff, emissive: 0x003366 },
+    { hex: 0x4400cc, emissive: 0x220066 },
+    { hex: 0x9900ff, emissive: 0x440066 },
   ];
 
-  const baseRadius = 3.5;
-  const bandSpacing = 0.22;
-  const tubeRadius = 0.10;
-  const tubularSegments = 128;
-  const radialSegments = 16;
+  var baseRadius = 1.2;
+  var bandSpacing = 0.08;
+  var tubeRadius = 0.035;
 
-  colors.forEach((col, i) => {
-    const radius = baseRadius - i * bandSpacing;
+  colors.forEach(function(col, i) {
+    var radius = baseRadius - i * bandSpacing;
 
-    // Main solid band
-    const geo = new THREE.TorusGeometry(radius, tubeRadius, radialSegments, tubularSegments, Math.PI);
-    const mat = new THREE.MeshStandardMaterial({
+    // Solid band
+    var geo = new THREE.TorusGeometry(radius, tubeRadius, 16, 128, Math.PI);
+    var mat = new THREE.MeshStandardMaterial({
       color: col.hex,
       emissive: col.emissive,
       emissiveIntensity: 0.3,
@@ -162,12 +252,12 @@ function createRainbow3D() {
       opacity: 0,
       side: THREE.DoubleSide,
     });
-    const torus = new THREE.Mesh(geo, mat);
+    var torus = new THREE.Mesh(geo, mat);
     rainbowGroup.add(torus);
 
-    // Outer glow band (slightly larger, more transparent)
-    const glowGeo = new THREE.TorusGeometry(radius, tubeRadius * 2.5, 8, tubularSegments, Math.PI);
-    const glowMat = new THREE.MeshBasicMaterial({
+    // Glow band
+    var glowGeo = new THREE.TorusGeometry(radius, tubeRadius * 3, 8, 128, Math.PI);
+    var glowMat = new THREE.MeshBasicMaterial({
       color: col.hex,
       transparent: true,
       opacity: 0,
@@ -175,27 +265,23 @@ function createRainbow3D() {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
-    const glowTorus = new THREE.Mesh(glowGeo, glowMat);
+    var glowTorus = new THREE.Mesh(glowGeo, glowMat);
     rainbowGlowGroup.add(glowTorus);
   });
 
-  // Position the rainbow as a real 3D object anchored in space:
-  // - far behind the clouds (z = -8)
-  // - base touching the "ground" (y offset)
-  // - tilted slightly toward the viewer for depth
-  rainbowGroup.position.set(0, -2.0, -8);
-  rainbowGroup.rotation.x = -0.15; // slight tilt back
-  rainbowGroup.scale.set(1.2, 1.2, 1.2);
-
+  // Position relative to scene root (ground level, in front of user)
+  rainbowGroup.position.set(0, 0, -2);
+  rainbowGroup.rotation.x = 0; // upright, base on ground
   rainbowGlowGroup.position.copy(rainbowGroup.position);
   rainbowGlowGroup.rotation.copy(rainbowGroup.rotation);
-  rainbowGlowGroup.scale.copy(rainbowGroup.scale);
 
-  scene.add(rainbowGroup);
-  scene.add(rainbowGlowGroup);
+  sceneRoot.add(rainbowGroup);
+  sceneRoot.add(rainbowGlowGroup);
 }
 
-// ─── CLOUD CREATION ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// CLOUDS
+// ═══════════════════════════════════════════════════════════════════
 function createCartoonCloud(s) {
   s = s || 1;
   var g = new THREE.Group();
@@ -218,34 +304,25 @@ function createCartoonCloud(s) {
     g.add(mesh);
   });
 
-  // Shadow underneath
-  var sg = new THREE.PlaneGeometry(1.6 * s, 0.6 * s);
-  var sm = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.15, side: THREE.DoubleSide });
-  var sh = new THREE.Mesh(sg, sm);
-  sh.position.set(0, -0.35 * s, 0);
-  sh.rotation.x = -Math.PI / 2;
-  g.add(sh);
-
   return g;
 }
 
 function createClouds() {
   var count = 14;
   STATE.cloudsTotal = count;
-
   var grays = [0xd0d0d0, 0xc8c8c8, 0xbababa, 0xdcdcdc, 0xb0b0b0];
 
   for (var i = 0; i < count; i++) {
-    var scale = 0.6 + Math.random() * 0.7;
+    var scale = 0.2 + Math.random() * 0.25; // smaller for AR real-world scale
     var cloud = createCartoonCloud(scale);
 
-    // Spread clouds in front of the rainbow (z: -1 to -3)
+    // Spread around the rainbow in 3D space
     var angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
-    var radius = 0.8 + Math.random() * 2.8;
+    var radius = 0.4 + Math.random() * 1.2;
     cloud.position.set(
-      Math.cos(angle) * radius * 1.2,
-      Math.sin(angle) * radius * 0.7 + 0.3,
-      -1 - Math.random() * 2
+      Math.cos(angle) * radius,
+      0.3 + Math.random() * 1.2,  // above ground
+      -1.5 - Math.random() * 1.5   // between camera and rainbow
     );
 
     var tint = grays[Math.floor(Math.random() * grays.length)];
@@ -257,32 +334,34 @@ function createClouds() {
       cleared: false,
       originalY: cloud.position.y,
       bobSpeed: 0.3 + Math.random() * 0.4,
-      bobAmp: 0.03 + Math.random() * 0.04,
+      bobAmp: 0.01 + Math.random() * 0.015,
       driftSpeed: 0.05 + Math.random() * 0.1,
       phase: Math.random() * Math.PI * 2,
       dissolving: false,
       dissolveProgress: 0,
     };
 
-    scene.add(cloud);
+    sceneRoot.add(cloud);
     clouds.push(cloud);
   }
 }
 
-// ─── SPARKLE PARTICLES ──────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// SPARKLE PARTICLES
+// ═══════════════════════════════════════════════════════════════════
 function createSparkles() {
-  var count = 200;
+  var count = 150;
   var geometry = new THREE.BufferGeometry();
   var positions = new Float32Array(count * 3);
   var velocities = [];
 
   for (var i = 0; i < count; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 8;
-    positions[i * 3 + 1] = (Math.random() - 0.5) * 6;
-    positions[i * 3 + 2] = -2 - Math.random() * 5;
+    positions[i * 3] = (Math.random() - 0.5) * 3;
+    positions[i * 3 + 1] = Math.random() * 2;
+    positions[i * 3 + 2] = -1 - Math.random() * 2;
     velocities.push({
-      x: (Math.random() - 0.5) * 0.02,
-      y: Math.random() * 0.02 + 0.005,
+      x: (Math.random() - 0.5) * 0.005,
+      y: Math.random() * 0.008 + 0.002,
       z: 0,
     });
   }
@@ -290,39 +369,181 @@ function createSparkles() {
   geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
   var material = new THREE.PointsMaterial({
-    color: 0xffee88,
-    size: 0.06,
-    transparent: true,
-    opacity: 0,
+    color: 0xffee88, size: 0.02, transparent: true, opacity: 0,
     blending: THREE.AdditiveBlending,
   });
 
   particleSystem = new THREE.Points(geometry, material);
   particleSystem.userData.velocities = velocities;
-  scene.add(particleSystem);
+  sceneRoot.add(particleSystem);
 }
 
-// ─── CAMERA ─────────────────────────────────────────────────────────
-async function startCamera() {
+// ═══════════════════════════════════════════════════════════════════
+// START — WebXR AR or FALLBACK
+// ═══════════════════════════════════════════════════════════════════
+async function startExperience() {
+  initThree();
+
+  if (STATE.xrSupported) {
+    await startWebXR();
+  } else {
+    await startFallback();
+  }
+}
+
+// ─── WebXR AR Session ────────────────────────────────────────────
+async function startWebXR() {
+  STATE.xrMode = true;
+
+  // Hide sceneRoot until anchored
+  sceneRoot.visible = false;
+
+  try {
+    xrSession = await navigator.xr.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay'],
+      domOverlay: { root: document.getElementById('dom-overlay') },
+    });
+
+    renderer.xr.setReferenceSpaceType('local');
+    await renderer.xr.setSession(xrSession);
+
+    // Show placement message
+    document.getElementById('reticle-msg').style.display = 'block';
+
+    STATE.phase = 'placing';
+
+    // Tap to place
+    xrSession.addEventListener('select', onXRSelect);
+
+    // Start XR render loop
+    renderer.setAnimationLoop(renderXR);
+
+  } catch (e) {
+    console.warn('WebXR session failed, falling back:', e);
+    STATE.xrMode = false;
+    await startFallback();
+  }
+}
+
+function onXRSelect() {
+  if (STATE.phase === 'placing' && reticleMesh.visible) {
+    // Anchor scene at reticle position
+    var pos = new THREE.Vector3();
+    var quat = new THREE.Quaternion();
+    var scale = new THREE.Vector3();
+    reticleMesh.matrix.decompose(pos, quat, scale);
+
+    sceneRoot.position.copy(pos);
+    sceneRoot.quaternion.copy(quat);
+    sceneRoot.visible = true;
+    reticleMesh.visible = false;
+    STATE.sceneAnchored = true;
+
+    document.getElementById('reticle-msg').style.display = 'none';
+
+    startGameplay();
+  }
+}
+
+function renderXR(timestamp, frame) {
+  if (!frame) return;
+
+  var referenceSpace = renderer.xr.getReferenceSpace();
+  var session = renderer.xr.getSession();
+
+  // Hit-test for placement phase
+  if (STATE.phase === 'placing') {
+    if (!hitTestSourceRequested) {
+      session.requestReferenceSpace('viewer').then(function(viewerSpace) {
+        session.requestHitTestSource({ space: viewerSpace }).then(function(source) {
+          hitTestSource = source;
+        });
+      });
+      hitTestSourceRequested = true;
+    }
+
+    if (hitTestSource) {
+      var hitTestResults = frame.getHitTestResults(hitTestSource);
+      if (hitTestResults.length > 0) {
+        var hit = hitTestResults[0];
+        var pose = hit.getPose(referenceSpace);
+        reticleMesh.visible = true;
+        reticleMesh.matrix.fromArray(pose.transform.matrix);
+      } else {
+        reticleMesh.visible = false;
+      }
+    }
+  }
+
+  // Animate scene
+  animateScene();
+
+  renderer.render(scene, camera);
+}
+
+// ─── Fallback (no WebXR) ─────────────────────────────────────────
+async function startFallback() {
+  STATE.xrMode = false;
+
+  // Camera background
+  var video = document.getElementById('camera-video');
+  video.style.display = 'block';
   try {
     var stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
     });
-    var video = document.getElementById('camera-video');
     video.srcObject = stream;
     await video.play();
-    return true;
   } catch (e) {
-    console.warn('Camera not available', e);
-    document.getElementById('camera-video').style.background =
-      'linear-gradient(180deg, #87CEEB 0%, #b0e0e6 40%, #e0f0ff 100%)';
-    return false;
+    video.style.background = 'linear-gradient(180deg, #87CEEB 0%, #b0e0e6 40%, #e0f0ff 100%)';
   }
+
+  // Position scene in front of camera
+  sceneRoot.position.set(0, -0.5, 0);
+  sceneRoot.visible = true;
+  STATE.sceneAnchored = true;
+
+  startGameplay();
+
+  // Non-XR render loop
+  function renderFallback() {
+    requestAnimationFrame(renderFallback);
+    animateScene();
+    renderer.render(scene, camera);
+  }
+  renderFallback();
 }
 
-// ─── SWIPE MECHANICS ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// GAMEPLAY START
+// ═══════════════════════════════════════════════════════════════════
+function startGameplay() {
+  STATE.phase = 'playing';
+
+  document.getElementById('top-bar').style.display = 'flex';
+  document.getElementById('swipe-hint').style.display = 'block';
+
+  setTimeout(function() {
+    var hint = document.getElementById('swipe-hint');
+    if (hint) { hint.style.transition = 'opacity 1s'; hint.style.opacity = '0'; }
+    setTimeout(function() { if (hint) hint.style.display = 'none'; }, 1000);
+  }, 4000);
+
+  // Swipe input on the overlay (works in both XR and fallback)
+  var overlay = document.getElementById('dom-overlay');
+  overlay.addEventListener('touchstart', onPointerDown, { passive: false });
+  overlay.addEventListener('touchmove', onPointerMove, { passive: false });
+  overlay.addEventListener('touchend', onPointerUp);
+  overlay.addEventListener('mousedown', onPointerDown);
+  overlay.addEventListener('mousemove', onPointerMove);
+  overlay.addEventListener('mouseup', onPointerUp);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SWIPE MECHANICS
+// ═══════════════════════════════════════════════════════════════════
 var swipeTrail = document.getElementById('swipe-trail');
-var trailLines = [];
 
 function onPointerDown(e) {
   if (STATE.phase !== 'playing') return;
@@ -333,11 +554,9 @@ function onPointerDown(e) {
 function onPointerMove(e) {
   if (!STATE.isSwiping || STATE.phase !== 'playing') return;
   e.preventDefault();
-
   var pos = getPointerPos(e);
   STATE.swipePoints.push(pos);
   if (STATE.swipePoints.length > 12) STATE.swipePoints.shift();
-
   drawSwipeTrail();
   checkSwipeHits(pos);
 }
@@ -346,7 +565,6 @@ function onPointerUp() {
   STATE.isSwiping = false;
   STATE.swipePoints = [];
   swipeTrail.innerHTML = '';
-  trailLines = [];
 }
 
 function getPointerPos(e) {
@@ -365,7 +583,7 @@ function drawSwipeTrail() {
     line.setAttribute('x2', pts[i].x);
     line.setAttribute('y2', pts[i].y);
     line.style.stroke = 'rgba(255, 230, 100, ' + (opacity * 0.8) + ')';
-    line.style.strokeWidth = 2 + opacity * 4;
+    line.style.strokeWidth = String(2 + opacity * 4);
     swipeTrail.appendChild(line);
   }
 }
@@ -374,7 +592,9 @@ function checkSwipeHits(pos) {
   pointer.x = (pos.x / window.innerWidth) * 2 - 1;
   pointer.y = -(pos.y / window.innerHeight) * 2 + 1;
 
-  raycaster.setFromCamera(pointer, camera);
+  // In XR mode, use the XR camera
+  var cam = STATE.xrMode ? renderer.xr.getCamera(camera) : camera;
+  raycaster.setFromCamera(pointer, cam);
 
   clouds.forEach(function(cloud) {
     if (cloud.userData.cleared || cloud.userData.dissolving) return;
@@ -394,19 +614,24 @@ function clearCloud(cloud) {
   }
 }
 
-function spawnBurstAt(position) {
+function spawnBurstAt(worldPos) {
+  // Convert cloud local position to world
+  var wPos = new THREE.Vector3();
+  wPos.copy(worldPos);
+  sceneRoot.localToWorld(wPos);
+
   for (var i = 0; i < 8; i++) {
-    var geo = new THREE.SphereGeometry(0.04, 6, 6);
+    var geo = new THREE.SphereGeometry(0.012, 6, 6);
     var mat = new THREE.MeshBasicMaterial({
       color: new THREE.Color().setHSL(Math.random(), 0.8, 0.6),
       transparent: true, opacity: 1,
     });
     var p = new THREE.Mesh(geo, mat);
-    p.position.copy(position);
+    p.position.copy(wPos);
     p.userData.velocity = new THREE.Vector3(
-      (Math.random() - 0.5) * 0.15,
-      (Math.random() - 0.5) * 0.15,
-      (Math.random() - 0.5) * 0.05
+      (Math.random() - 0.5) * 0.05,
+      (Math.random() - 0.5) * 0.05,
+      (Math.random() - 0.5) * 0.02
     );
     p.userData.life = 1.0;
     scene.add(p);
@@ -421,7 +646,9 @@ function updateProgress() {
   rainbowTargetOpacity = STATE.cloudsCleared / STATE.cloudsTotal;
 }
 
-// ─── WIN SEQUENCE ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// WIN
+// ═══════════════════════════════════════════════════════════════════
 function triggerWin() {
   STATE.phase = 'won';
   document.getElementById('swipe-hint').style.display = 'none';
@@ -432,188 +659,126 @@ function triggerWin() {
   }, 1500);
 }
 
-// ─── CONFETTI ───────────────────────────────────────────────────────
 function startConfetti() {
   var canvas = document.getElementById('confetti-canvas');
   var ctx = canvas.getContext('2d');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-
   var confetti = [];
-  var colors = ['#ff0000', '#ff8800', '#ffff00', '#00cc00', '#0066ff', '#8800ff', '#ff69b4', '#ffd700'];
-
+  var colors = ['#ff0000','#ff8800','#ffff00','#00cc00','#0066ff','#8800ff','#ff69b4','#ffd700'];
   for (var i = 0; i < 150; i++) {
-    confetti.push({
-      x: Math.random() * canvas.width,
-      y: -20 - Math.random() * canvas.height,
-      w: 6 + Math.random() * 8,
-      h: 4 + Math.random() * 4,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      vy: 1.5 + Math.random() * 3,
-      vx: (Math.random() - 0.5) * 2,
-      rot: Math.random() * Math.PI * 2,
-      rotSpeed: (Math.random() - 0.5) * 0.2,
-    });
+    confetti.push({ x: Math.random()*canvas.width, y: -20-Math.random()*canvas.height,
+      w: 6+Math.random()*8, h: 4+Math.random()*4,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      vy: 1.5+Math.random()*3, vx: (Math.random()-0.5)*2,
+      rot: Math.random()*Math.PI*2, rotSpeed: (Math.random()-0.5)*0.2 });
   }
-
-  function animateConfetti() {
+  (function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     confetti.forEach(function(c) {
-      c.x += c.vx;
-      c.y += c.vy;
-      c.rot += c.rotSpeed;
+      c.x += c.vx; c.y += c.vy; c.rot += c.rotSpeed;
       if (c.y > canvas.height + 20) { c.y = -20; c.x = Math.random() * canvas.width; }
-      ctx.save();
-      ctx.translate(c.x, c.y);
-      ctx.rotate(c.rot);
-      ctx.fillStyle = c.color;
-      ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
-      ctx.restore();
+      ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot);
+      ctx.fillStyle = c.color; ctx.fillRect(-c.w/2, -c.h/2, c.w, c.h); ctx.restore();
     });
-    requestAnimationFrame(animateConfetti);
-  }
-  animateConfetti();
+    requestAnimationFrame(loop);
+  })();
 }
 
-// ─── ANIMATION LOOP ─────────────────────────────────────────────────
-var clock = new THREE.Clock();
-
-function animate() {
-  requestAnimationFrame(animate);
+// ═══════════════════════════════════════════════════════════════════
+// ANIMATE SCENE (shared by XR and fallback)
+// ═══════════════════════════════════════════════════════════════════
+function animateScene() {
   var t = clock.getElapsedTime();
 
-  // ── Animate clouds ──
+  // Clouds
   clouds.forEach(function(cloud) {
     var ud = cloud.userData;
     if (ud.dissolving) {
       ud.dissolveProgress += 0.03;
-      var p = ud.dissolveProgress;
       cloud.children.forEach(function(child) {
-        if (child.material) child.material.opacity = Math.max(0, 1 - p);
-        child.position.multiplyScalar(1.02);
+        if (child.material) child.material.opacity = Math.max(0, 1 - ud.dissolveProgress);
+        child.position.multiplyScalar(1.015);
       });
-      cloud.position.y += 0.03;
-      cloud.scale.multiplyScalar(0.98);
-      if (p >= 1) scene.remove(cloud);
+      cloud.position.y += 0.01;
+      cloud.scale.multiplyScalar(0.985);
+      if (ud.dissolveProgress >= 1) sceneRoot.remove(cloud);
     } else {
       cloud.position.y = ud.originalY + Math.sin(t * ud.bobSpeed + ud.phase) * ud.bobAmp;
-      cloud.position.x += Math.sin(t * ud.driftSpeed + ud.phase) * 0.0005;
+      cloud.position.x += Math.sin(t * ud.driftSpeed + ud.phase) * 0.0002;
     }
   });
 
-  // ── Animate 3D rainbow ──
+  // Rainbow
   if (rainbowGroup) {
     rainbowGroup.children.forEach(function(torus, i) {
       var target = rainbowTargetOpacity;
-      var current = torus.material.opacity;
-      torus.material.opacity += (target - current) * 0.04;
-
-      // Emissive intensity ramps up with reveal
+      torus.material.opacity += (target - torus.material.opacity) * 0.04;
       torus.material.emissiveIntensity = 0.2 + target * 0.5;
-
-      // Gentle 3D breathing — scale pulsates in all axes when visible
       if (target > 0.3) {
-        var breath = 1 + Math.sin(t * 1.2 + i * 0.4) * 0.015;
-        torus.scale.set(breath, breath, breath);
+        var b = 1 + Math.sin(t * 1.2 + i * 0.4) * 0.01;
+        torus.scale.set(b, b, b);
       }
     });
-
-    // Slow rotation of the whole rainbow around Y — feels anchored in space
-    if (rainbowTargetOpacity > 0.1) {
-      rainbowGroup.rotation.y = Math.sin(t * 0.3) * 0.08;
-    }
+    // Subtle Y-axis sway — feels anchored but alive
+    rainbowGroup.rotation.y = Math.sin(t * 0.25) * 0.05;
   }
 
-  // ── Animate glow layer ──
+  // Rainbow glow
   if (rainbowGlowGroup) {
-    rainbowGlowGroup.children.forEach(function(glow, i) {
-      var glowTarget = rainbowTargetOpacity * 0.15;
-      glow.material.opacity += (glowTarget - glow.material.opacity) * 0.03;
-
-      if (rainbowTargetOpacity > 0.3) {
-        var pulse = 1 + Math.sin(t * 1.8 + i * 0.5) * 0.02;
-        glow.scale.set(pulse, pulse, pulse);
-      }
+    rainbowGlowGroup.children.forEach(function(glow) {
+      glow.material.opacity += (rainbowTargetOpacity * 0.12 - glow.material.opacity) * 0.03;
     });
-
     rainbowGlowGroup.rotation.y = rainbowGroup.rotation.y;
   }
 
-  // ── Animate sparkle particles ──
+  // Sparkles
   if (particleSystem) {
-    var targetOpacity = rainbowTargetOpacity > 0.3 ? rainbowTargetOpacity * 0.6 : 0;
-    particleSystem.material.opacity += (targetOpacity - particleSystem.material.opacity) * 0.02;
-
+    var tOp = rainbowTargetOpacity > 0.3 ? rainbowTargetOpacity * 0.5 : 0;
+    particleSystem.material.opacity += (tOp - particleSystem.material.opacity) * 0.02;
     var positions = particleSystem.geometry.attributes.position.array;
     var vels = particleSystem.userData.velocities;
     for (var i = 0; i < vels.length; i++) {
-      positions[i * 3] += vels[i].x;
-      positions[i * 3 + 1] += vels[i].y;
-      if (positions[i * 3 + 1] > 4) positions[i * 3 + 1] = -3;
-      if (positions[i * 3] > 5) positions[i * 3] = -5;
-      if (positions[i * 3] < -5) positions[i * 3] = 5;
+      positions[i*3] += vels[i].x;
+      positions[i*3+1] += vels[i].y;
+      if (positions[i*3+1] > 2.5) positions[i*3+1] = 0;
+      if (positions[i*3] > 2) positions[i*3] = -2;
+      if (positions[i*3] < -2) positions[i*3] = 2;
     }
     particleSystem.geometry.attributes.position.needsUpdate = true;
   }
 
-  // ── Animate burst particles ──
+  // Burst particles (in world space)
   for (var j = burstParticles.length - 1; j >= 0; j--) {
     var bp = burstParticles[j];
     bp.position.add(bp.userData.velocity);
-    bp.userData.velocity.y -= 0.003;
+    bp.userData.velocity.y -= 0.001;
     bp.userData.life -= 0.025;
     bp.material.opacity = Math.max(0, bp.userData.life);
-    if (bp.userData.life <= 0) {
-      scene.remove(bp);
-      burstParticles.splice(j, 1);
-    }
+    if (bp.userData.life <= 0) { scene.remove(bp); burstParticles.splice(j, 1); }
   }
-
-  renderer.render(scene, camera);
 }
 
-// ─── RESIZE ─────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════════════════════════════════════
 function onResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  if (!STATE.xrMode) {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
 }
 
-// ─── START GAME ─────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+// START BUTTON
+// ═══════════════════════════════════════════════════════════════════
 document.getElementById('start-btn').addEventListener('click', async function() {
-  initThree();
-  createSparkles();
-  await startCamera();
-
   document.getElementById('splash-screen').classList.add('hidden');
-  setTimeout(function() {
-    document.getElementById('splash-screen').style.display = 'none';
-  }, 800);
-
-  document.getElementById('top-bar').style.display = 'flex';
-  document.getElementById('swipe-hint').style.display = 'block';
-
-  setTimeout(function() {
-    var hint = document.getElementById('swipe-hint');
-    if (hint) hint.style.transition = 'opacity 1s';
-    if (hint) hint.style.opacity = '0';
-    setTimeout(function() { if (hint) hint.style.display = 'none'; }, 1000);
-  }, 4000);
-
-  STATE.phase = 'playing';
-
-  var canvas = renderer.domElement;
-  canvas.addEventListener('mousedown', onPointerDown);
-  canvas.addEventListener('mousemove', onPointerMove);
-  canvas.addEventListener('mouseup', onPointerUp);
-  canvas.addEventListener('touchstart', onPointerDown, { passive: false });
-  canvas.addEventListener('touchmove', onPointerMove, { passive: false });
-  canvas.addEventListener('touchend', onPointerUp);
-
-  animate();
+  setTimeout(function() { document.getElementById('splash-screen').style.display = 'none'; }, 800);
+  await startExperience();
 });
 
-// CTA button
 document.getElementById('cta-btn').addEventListener('click', function() {
   alert('Grazie per aver giocato!\nMostra questo schermo al punto vendita per ritirare il tuo gadget!');
 });

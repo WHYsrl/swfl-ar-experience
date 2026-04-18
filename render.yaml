@@ -1,1 +1,10 @@
-pbpaste > render.yaml
+services:
+  - type: web
+    name: swfl-ar-experience
+    runtime: static
+    buildCommand: echo "Static site"
+    staticPublishPath: .
+    headers:
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"

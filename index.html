@@ -413,6 +413,11 @@ let themeElements   = [];
 let grayscaleAmount = 1.0; // 1.0 = full B&W, 0.0 = full color
 let grayShader = null;     // { program, posBuffer, texCoordBuffer, fbTexture, locs }
 
+// Offscreen render target for 3D scene (isolates color from grayscale camera)
+let arRenderTarget = null;
+let compositeScene = null;
+let compositeCamera = null;
+
 const GRAY_VERT = `
   attribute vec2 a_position;
   attribute vec2 a_texCoord;
@@ -950,6 +955,28 @@ function gamePipelineModule() {
       const gl = renderer.getContext();
       initGrayscaleShader(gl);
 
+      // ---- OFFSCREEN RENDER TARGET for 3D objects ----
+      // Renders 3D scene to a separate FBO, then composites on top of grayscale camera.
+      // This ensures 3D objects stay FULLY colorful regardless of camera grayscale.
+      const dpr = renderer.getPixelRatio();
+      const rtW = Math.floor(window.innerWidth * dpr);
+      const rtH = Math.floor(window.innerHeight * dpr);
+      arRenderTarget = new THREE.WebGLRenderTarget(rtW, rtH, {
+        format: THREE.RGBAFormat,
+        stencilBuffer: false,
+      });
+
+      // Fullscreen quad overlay scene to composite the 3D FBO onto the canvas
+      compositeCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      compositeScene = new THREE.Scene();
+      const compositeMat = new THREE.MeshBasicMaterial({
+        map: arRenderTarget.texture,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+      });
+      compositeScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compositeMat));
+
       // ---- START SCRATCH immediately (camera is live behind it) ----
       initScratch();
 
@@ -997,15 +1024,29 @@ function gamePipelineModule() {
     },
 
     onRender: () => {
-      // Apply grayscale ONLY to camera feed (already drawn by GlTextureRenderer)
+      // === STEP 1: Apply grayscale ONLY to camera feed (on main canvas) ===
       const gl = arRenderer.getContext();
       applyGrayscaleToCamera(gl);
-
-      // Reset Three.js GL state (our raw GL calls may confuse its state cache)
       arRenderer.resetState();
 
-      // Render 3D objects ON TOP — in full color!
+      // === STEP 2: Render 3D scene to offscreen FBO (full color, transparent bg) ===
+      // Resize FBO if canvas size changed
+      const dpr = arRenderer.getPixelRatio();
+      const w = Math.floor(window.innerWidth * dpr);
+      const h = Math.floor(window.innerHeight * dpr);
+      if (arRenderTarget.width !== w || arRenderTarget.height !== h) {
+        arRenderTarget.setSize(w, h);
+      }
+
+      arRenderer.setRenderTarget(arRenderTarget);
+      arRenderer.setClearColor(0x000000, 0); // fully transparent background
+      arRenderer.clear(true, true, true);
       arRenderer.render(arScene, arCamera);
+
+      // === STEP 3: Composite 3D FBO on top of grayscale camera (main canvas) ===
+      arRenderer.setRenderTarget(null);
+      // autoClear is already false (set by 8th Wall), so grayscale camera is preserved
+      arRenderer.render(compositeScene, compositeCamera);
     },
   };
 }
